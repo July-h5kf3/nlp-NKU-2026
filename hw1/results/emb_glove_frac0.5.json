@@ -1,32 +1,36 @@
 {
-  "method": "frequency",
-  "C": 1.0,
-  "train_fraction": 1.0,
-  "num_train": 9215,
-  "vocab_size": 127053,
-  "saga_iterations": 1851,
+  "method": "glove",
+  "w2v_seed": null,
+  "nyt_all_text": false,
+  "train_fraction": 0.5,
+  "num_train": 4607,
+  "vocab_size": 400000,
+  "test_token_oov_rate": 0.019452976110686956,
+  "test_type_oov_rate": 0.27933376295047835,
+  "test_empty_docs": 0,
+  "saga_iterations": 246,
   "converged": true,
-  "train_seconds": 113.5,
+  "train_seconds": 2.7,
   "val": {
-    "accuracy": 0.9809027777777778,
-    "macro_f1": 0.9574572467440445,
+    "accuracy": 0.9713541666666666,
+    "macro_f1": 0.9355923924404586,
     "per_class": {
       "business": {
-        "precision": 0.9635036496350365,
-        "recall": 0.9230769230769231,
-        "f1": 0.9428571428571428,
+        "precision": 0.9084507042253521,
+        "recall": 0.9020979020979021,
+        "f1": 0.9052631578947369,
         "support": 143
       },
       "politics": {
-        "precision": 0.9315068493150684,
-        "recall": 0.9379310344827586,
-        "f1": 0.9347079037800687,
+        "precision": 0.8933333333333333,
+        "recall": 0.9241379310344827,
+        "f1": 0.9084745762711864,
         "support": 145
       },
       "sports": {
-        "precision": 0.9919447640966629,
-        "recall": 0.9976851851851852,
-        "f1": 0.9948066935949221,
+        "precision": 0.9953488372093023,
+        "recall": 0.9907407407407407,
+        "f1": 0.9930394431554525,
         "support": 864
       }
     },
@@ -37,104 +41,66 @@
     ],
     "confusion_matrix": [
       [
-        132,
+        129,
+        12,
+        2
+      ],
+      [
         9,
+        134,
         2
       ],
       [
         4,
-        136,
-        5
+        4,
+        856
+      ]
+    ]
+  },
+  "test": {
+    "accuracy": 0.984375,
+    "macro_f1": 0.9612856734475823,
+    "per_class": {
+      "business": {
+        "precision": 0.9375,
+        "recall": 0.9440559440559441,
+        "f1": 0.9407665505226481,
+        "support": 143
+      },
+      "politics": {
+        "precision": 0.9448275862068966,
+        "recall": 0.9448275862068966,
+        "f1": 0.9448275862068966,
+        "support": 145
+      },
+      "sports": {
+        "precision": 0.9988412514484357,
+        "recall": 0.9976851851851852,
+        "f1": 0.998262883613202,
+        "support": 864
+      }
+    },
+    "labels": [
+      "business",
+      "politics",
+      "sports"
+    ],
+    "confusion_matrix": [
+      [
+        135,
+        7,
+        1
+      ],
+      [
+        8,
+        137,
+        0
       ],
       [
         1,
         1,
         862
       ]
-    ]
-  },
-  "test": {
-    "accuracy": 0.9913194444444444,
-    "macro_f1": 0.9778651461645046,
-    "per_class": {
-      "business": {
-        "precision": 0.9463087248322147,
-        "recall": 0.986013986013986,
-        "f1": 0.9657534246575342,
-        "support": 143
-      },
-      "politics": {
-        "precision": 0.9857142857142858,
-        "recall": 0.9517241379310345,
-        "f1": 0.968421052631579,
-        "support": 145
-      },
-      "sports": {
-        "precision": 1.0,
-        "recall": 0.9988425925925926,
-        "f1": 0.9994209612044007,
-        "support": 864
-      }
-    },
-    "labels": [
-      "business",
-      "politics",
-      "sports"
-    ],
-    "confusion_matrix": [
-      [
-        141,
-        2,
-        0
-      ],
-      [
-        7,
-        138,
-        0
-      ],
-      [
-        1,
-        0,
-        863
-      ]
-    ]
-  },
-  "top_features": {
-    "business": [
-      "company",
-      "mr.",
-      "european",
-      "its",
-      "percent",
-      "flight",
-      "market",
-      "fed",
-      "bank",
-      "economic"
-    ],
-    "politics": [
-      "mr.",
-      "texas",
-      "obama",
-      "republican",
-      "officials",
-      "military",
-      "law",
-      "state",
-      "washington",
-      "people"
-    ],
-    "sports": [
-      "players",
-      "game",
-      "league",
-      "team",
-      "season",
-      "club",
-      "football",
-      "open",
-      ")",
-      "player"
     ]
   },
   "test_predictions": [
@@ -323,7 +289,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "politics",
@@ -377,7 +343,7 @@
     "sports",
     "politics",
     "sports",
-    "business",
+    "politics",
     "business",
     "sports",
     "politics",
@@ -571,7 +537,7 @@
     "sports",
     "sports",
     "sports",
-    "sports",
+    "business",
     "sports",
     "sports",
     "politics",
@@ -609,7 +575,7 @@
     "sports",
     "sports",
     "sports",
-    "politics",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -647,7 +613,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "business",
     "sports",
@@ -657,7 +623,7 @@
     "politics",
     "sports",
     "business",
-    "business",
+    "sports",
     "sports",
     "sports",
     "sports",
@@ -667,7 +633,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "business",
@@ -689,7 +655,7 @@
     "politics",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -733,7 +699,7 @@
     "business",
     "sports",
     "sports",
-    "politics",
+    "business",
     "politics",
     "business",
     "politics",
@@ -808,7 +774,7 @@
     "sports",
     "sports",
     "sports",
-    "politics",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -839,7 +805,7 @@
     "sports",
     "business",
     "sports",
-    "sports",
+    "politics",
     "sports",
     "politics",
     "sports",
@@ -867,13 +833,13 @@
     "sports",
     "sports",
     "sports",
-    "politics",
+    "business",
     "sports",
     "sports",
     "sports",
     "sports",
     "sports",
-    "business",
+    "sports",
     "sports",
     "sports",
     "sports",
@@ -922,7 +888,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -1050,7 +1016,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -1255,7 +1221,7 @@
     "business",
     "sports",
     "politics",
-    "business",
+    "politics",
     "business",
     "sports",
     "sports",

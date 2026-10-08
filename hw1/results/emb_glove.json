@@ -2,6 +2,8 @@
   "method": "glove",
   "w2v_seed": null,
   "nyt_all_text": false,
+  "train_fraction": 1.0,
+  "num_train": 9215,
   "vocab_size": 400000,
   "test_token_oov_rate": 0.019452976110686956,
   "test_type_oov_rate": 0.27933376295047835,
