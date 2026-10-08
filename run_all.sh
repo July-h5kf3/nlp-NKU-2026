@@ -75,8 +75,7 @@ if [ "$($PYTHON -c 'import torch; print(torch.cuda.is_available())')" != "True" 
   echo "warning: no CUDA GPU visible, BERT will run on CPU and be very slow" >&2
 fi
 
-# Required: dataset statistics and the six settings of the main table.
-run $CODE/stats.py
+# Required: the six settings of the main table.
 for method in binary frequency; do
   run $CODE/BoW.py --method "$method"
 done
@@ -129,7 +128,5 @@ if [ "$REQUIRED_ONLY" -eq 0 ]; then
   done
 fi
 
-# Rebuild results/summary.md; in --required mode the extra rows come from the committed JSON files.
-run $CODE/summarize.py
 echo
-echo "Done in $(((SECONDS - start_seconds) / 60)) min. Tables: hw1/results/summary.md"
+echo "Done in $(((SECONDS - start_seconds) / 60)) min. Results: hw1/results/*.json"
