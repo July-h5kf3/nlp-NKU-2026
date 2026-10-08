@@ -81,12 +81,11 @@ def main() -> None:
     if args.nyt_all_text and args.method != "nyt":
         raise ValueError("--nyt_all_text only applies to --method nyt")
     check_fraction(args.train_fraction)
-    seed = SPLIT_SEED
     ensure_punkt()
-    splits = load_csv_splits(DATASET_DIR / "nyt.csv", seed=seed)
-    splits["train"].rows = subsample_rows(splits["train"].rows, args.train_fraction, seed=seed)
-    tokens = {name: [word_tokenize(row["text"]) for row in split.rows] for name, split in splits.items()}
-    labels = {name: [row["label"] for row in split.rows] for name, split in splits.items()}
+    splits = load_csv_splits(DATASET_DIR / "nyt.csv")
+    splits["train"] = subsample_rows(splits["train"], args.train_fraction)
+    tokens = {name: [word_tokenize(row["text"]) for row in rows] for name, rows in splits.items()}
+    labels = {name: [row["label"] for row in rows] for name, rows in splits.items()}
 
     run_tag = ("_all" if args.nyt_all_text else "") + fraction_tag(args.train_fraction)
     model_name = f"{args.method}{run_tag}_seed{args.seed}.w2v"
@@ -122,7 +121,7 @@ def main() -> None:
     }
 
     start = time.perf_counter()
-    classifier = LogisticRegression(solver="saga", max_iter=MAX_ITER, random_state=seed)
+    classifier = LogisticRegression(solver="saga", max_iter=MAX_ITER, random_state=SPLIT_SEED)
     classifier.fit(embed_doc(tokens["train"], vectors), labels["train"])
     train_seconds = time.perf_counter() - start
     num_iter = int(classifier.n_iter_.max())

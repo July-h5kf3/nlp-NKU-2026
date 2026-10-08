@@ -35,23 +35,20 @@ def parse_args() -> argparse.Namespace:
 
 def main(method: str, inverse_reg: float, train_fraction: float) -> None:
     check_fraction(train_fraction)
-    seed = SPLIT_SEED
     ensure_punkt()
-    splits = load_csv_splits(DATASET_DIR / "nyt.csv", seed=seed)
-    splits["train"].rows = subsample_rows(splits["train"].rows, train_fraction, seed=seed)
-    texts = {name: [row["text"] for row in split.rows] for name, split in splits.items()}
-    labels = {name: [row["label"] for row in split.rows] for name, split in splits.items()}
+    splits = load_csv_splits(DATASET_DIR / "nyt.csv")
+    splits["train"] = subsample_rows(splits["train"], train_fraction)
+    texts = {name: [row["text"] for row in rows] for name, rows in splits.items()}
+    labels = {name: [row["label"] for row in rows] for name, rows in splits.items()}
 
-    if method == "binary":
-        vectorizer = CountVectorizer(binary=True, tokenizer=word_tokenize, token_pattern=None)
-    elif method == "frequency":
-        vectorizer = CountVectorizer(binary=False, tokenizer=word_tokenize, token_pattern=None)
+    if method == "tfidf":
+        vectorizer = TfidfVectorizer(tokenizer=word_tokenize, token_pattern=None)
     else:
-        vectorizer = TfidfVectorizer(binary=False, tokenizer=word_tokenize, token_pattern=None)
+        vectorizer = CountVectorizer(binary=method == "binary", tokenizer=word_tokenize, token_pattern=None)
 
     start = time.perf_counter()
     train_features = vectorizer.fit_transform(texts["train"])
-    classifier = LogisticRegression(C=inverse_reg, solver="saga", max_iter=MAX_ITER, random_state=seed)
+    classifier = LogisticRegression(C=inverse_reg, solver="saga", max_iter=MAX_ITER, random_state=SPLIT_SEED)
     classifier.fit(train_features, labels["train"])
     train_seconds = time.perf_counter() - start
     num_iter = int(classifier.n_iter_.max())
