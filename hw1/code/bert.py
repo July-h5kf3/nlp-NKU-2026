@@ -4,7 +4,7 @@ import time
 from typing import Literal
 
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from transformers import (
     BertForSequenceClassification,
     BertTokenizerFast,
@@ -42,7 +42,6 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fine-tune BERT on NYT.")
-    parser.add_argument("--model", type=str, default=MODEL_NAME)
     parser.add_argument("--max_length", type=int, default=MAX_LENGTH)
     parser.add_argument("--seed", type=int, default=SPLIT_SEED, help="training seed; the data split always uses 42")
     parser.add_argument(
@@ -55,20 +54,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-class EncodedSplit(Dataset):
-    def __init__(self, encodings: dict[str, list[list[int]]], labels: list[int]) -> None:
-        self.encodings = encodings
-        self.labels = labels
-
-    def __len__(self) -> int:
-        return len(self.labels)
-
-    def __getitem__(self, index: int) -> dict[str, list[int] | int]:
-        item = {key: self.encodings[key][index] for key in self.encodings}
-        item["labels"] = self.labels[index]
-        return item
-
-
 def encode_split(
     texts: list[str],
     labels: list[str],
@@ -76,7 +61,8 @@ def encode_split(
     label2id: dict[str, int],
     max_length: int,
     truncation: Truncation,
-) -> EncodedSplit:
+) -> list[dict[str, list[int] | int]]:
+    """One feature dict per document, ready for DataCollatorWithPadding."""
     budget = max_length - NUM_SPECIAL_TOKENS
     head_budget = round(HEAD_SHARE * budget)
     input_ids: list[list[int]] = []
@@ -88,13 +74,10 @@ def encode_split(
         elif len(token_ids) > budget:
             token_ids = token_ids[:head_budget] + token_ids[len(token_ids) - (budget - head_budget) :]
         input_ids.append([tokenizer.cls_token_id, *token_ids, tokenizer.sep_token_id])
-    encodings = {
-        "input_ids": input_ids,
-        "token_type_ids": [[0] * len(ids) for ids in input_ids],
-        "attention_mask": [[1] * len(ids) for ids in input_ids],
-    }
-    encoded_labels = [label2id[label] for label in labels]
-    return EncodedSplit(encodings, encoded_labels)
+    return [
+        {"input_ids": ids, "token_type_ids": [0] * len(ids), "attention_mask": [1] * len(ids), "labels": label2id[label]}
+        for ids, label in zip(input_ids, labels)
+    ]
 
 
 def predict(
@@ -181,18 +164,18 @@ def main() -> None:
     set_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    splits = load_csv_splits(DATASET_DIR / "nyt.csv", seed=SPLIT_SEED)
-    splits["train"].rows = subsample_rows(splits["train"].rows, args.train_fraction, seed=SPLIT_SEED)
-    texts = {name: [row["text"] for row in split.rows] for name, split in splits.items()}
-    labels = {name: [row["label"] for row in split.rows] for name, split in splits.items()}
+    splits = load_csv_splits(DATASET_DIR / "nyt.csv")
+    splits["train"] = subsample_rows(splits["train"], args.train_fraction)
+    texts = {name: [row["text"] for row in rows] for name, rows in splits.items()}
+    labels = {name: [row["label"] for row in rows] for name, rows in splits.items()}
 
     label_names = sorted(set(labels["train"]))
     label2id = {name: index for index, name in enumerate(label_names)}
     id2label = {index: name for name, index in label2id.items()}
 
-    tokenizer = BertTokenizerFast.from_pretrained(args.model)
+    tokenizer = BertTokenizerFast.from_pretrained(MODEL_NAME)
     model = BertForSequenceClassification.from_pretrained(
-        args.model,
+        MODEL_NAME,
         num_labels=len(label2id),
         id2label=id2label,
         label2id=label2id,
@@ -231,7 +214,7 @@ def main() -> None:
     save_results(
         f"bert_len{args.max_length}_seed{args.seed}{truncation_tag}{fraction_tag(args.train_fraction)}",
         {
-            "model": args.model,
+            "model": MODEL_NAME,
             "max_length": args.max_length,
             "truncation": args.truncation,
             "train_fraction": args.train_fraction,
