@@ -2,52 +2,52 @@
   "model": "bert-base-uncased",
   "max_length": 64,
   "truncation": "head",
-  "train_fraction": 1.0,
-  "num_train": 9215,
-  "seed": 42,
+  "train_fraction": 0.25,
+  "num_train": 2303,
+  "seed": 44,
   "epochs": 3,
-  "train_seconds": 32.8,
+  "train_seconds": 10.7,
   "history": [
     {
       "epoch": 1,
-      "train_loss": 0.27910741170247394,
-      "val_accuracy": 0.96875,
-      "val_macro_f1": 0.9319391750823129
+      "train_loss": 0.5014189614189996,
+      "val_accuracy": 0.9600694444444444,
+      "val_macro_f1": 0.9135171319069961
     },
     {
       "epoch": 2,
-      "train_loss": 0.050664537482791476,
-      "val_accuracy": 0.9756944444444444,
-      "val_macro_f1": 0.9479683895582761
+      "train_loss": 0.09804715050591363,
+      "val_accuracy": 0.9626736111111112,
+      "val_macro_f1": 0.9233267958652503
     },
     {
       "epoch": 3,
-      "train_loss": 0.022212543421321444,
-      "val_accuracy": 0.9704861111111112,
-      "val_macro_f1": 0.9362887685938451
+      "train_loss": 0.049414088328679405,
+      "val_accuracy": 0.9635416666666666,
+      "val_macro_f1": 0.9215454924788654
     }
   ],
   "best_epoch": 2,
   "test_last_epoch": {
-    "accuracy": 0.9817708333333334,
-    "macro_f1": 0.962057301168667,
+    "accuracy": 0.9782986111111112,
+    "macro_f1": 0.952986079984063,
     "per_class": {
       "business": {
-        "precision": 0.9383561643835616,
-        "recall": 0.958041958041958,
-        "f1": 0.9480968858131488,
+        "precision": 0.9121621621621622,
+        "recall": 0.9440559440559441,
+        "f1": 0.9278350515463918,
         "support": 143
       },
       "politics": {
-        "precision": 0.951048951048951,
-        "recall": 0.9379310344827586,
-        "f1": 0.9444444444444444,
+        "precision": 0.9440559440559441,
+        "recall": 0.9310344827586207,
+        "f1": 0.9375,
         "support": 145
       },
       "sports": {
-        "precision": 0.9942062572421785,
-        "recall": 0.9930555555555556,
-        "f1": 0.9936305732484076,
+        "precision": 0.9953542392566783,
+        "recall": 0.9918981481481481,
+        "f1": 0.9936231884057971,
         "support": 864
       }
     },
@@ -58,65 +58,65 @@
     ],
     "confusion_matrix": [
       [
-        137,
-        4,
+        135,
+        6,
         2
       ],
       [
-        6,
-        136,
-        3
-      ],
-      [
-        3,
-        3,
-        858
-      ]
-    ]
-  },
-  "test_best_dev": {
-    "accuracy": 0.9817708333333334,
-    "macro_f1": 0.9600124689499788,
-    "per_class": {
-      "business": {
-        "precision": 0.950354609929078,
-        "recall": 0.9370629370629371,
-        "f1": 0.9436619718309859,
-        "support": 143
-      },
-      "politics": {
-        "precision": 0.9383561643835616,
-        "recall": 0.9448275862068966,
-        "f1": 0.9415807560137457,
-        "support": 145
-      },
-      "sports": {
-        "precision": 0.9942196531791907,
-        "recall": 0.9953703703703703,
-        "f1": 0.9947946790052054,
-        "support": 864
-      }
-    },
-    "labels": [
-      "business",
-      "politics",
-      "sports"
-    ],
-    "confusion_matrix": [
-      [
-        134,
-        7,
+        8,
+        135,
         2
       ],
       [
         5,
-        137,
-        3
+        2,
+        857
+      ]
+    ]
+  },
+  "test_best_dev": {
+    "accuracy": 0.9722222222222222,
+    "macro_f1": 0.9388214481075771,
+    "per_class": {
+      "business": {
+        "precision": 0.9538461538461539,
+        "recall": 0.8671328671328671,
+        "f1": 0.9084249084249084,
+        "support": 143
+      },
+      "politics": {
+        "precision": 0.8650306748466258,
+        "recall": 0.9724137931034482,
+        "f1": 0.9155844155844156,
+        "support": 145
+      },
+      "sports": {
+        "precision": 0.9953434225844005,
+        "recall": 0.9895833333333334,
+        "f1": 0.9924550203134068,
+        "support": 864
+      }
+    },
+    "labels": [
+      "business",
+      "politics",
+      "sports"
+    ],
+    "confusion_matrix": [
+      [
+        124,
+        17,
+        2
       ],
       [
         2,
-        2,
-        860
+        141,
+        2
+      ],
+      [
+        4,
+        5,
+        855
       ]
     ]
   },
@@ -225,7 +225,7 @@
     "sports",
     "sports",
     "business",
-    "politics",
+    "business",
     "politics",
     "politics",
     "sports",
@@ -317,7 +317,7 @@
     "business",
     "politics",
     "sports",
-    "politics",
+    "business",
     "sports",
     "sports",
     "politics",
@@ -344,7 +344,7 @@
     "sports",
     "sports",
     "sports",
-    "sports",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -363,7 +363,7 @@
     "business",
     "sports",
     "sports",
-    "politics",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -505,8 +505,8 @@
     "sports",
     "sports",
     "business",
-    "sports",
     "sports",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -785,7 +785,7 @@
     "sports",
     "sports",
     "sports",
-    "politics",
+    "business",
     "business",
     "sports",
     "sports",
@@ -856,7 +856,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -887,7 +887,7 @@
     "sports",
     "sports",
     "business",
-    "sports",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -905,7 +905,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -935,7 +935,7 @@
     "politics",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -962,7 +962,7 @@
     "business",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "politics",
     "sports",
@@ -1138,7 +1138,7 @@
     "sports",
     "sports",
     "politics",
-    "politics",
+    "sports",
     "sports",
     "sports",
     "sports",
@@ -1348,7 +1348,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "politics",
@@ -1460,7 +1460,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "politics",
@@ -1492,13 +1492,13 @@
     "sports",
     "politics",
     "business",
-    "sports",
     "sports",
     "sports",
     "sports",
     "sports",
     "sports",
     "sports",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -1514,7 +1514,7 @@
     "sports",
     "politics",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "politics",
@@ -1583,8 +1583,8 @@
     "sports",
     "politics",
     "business",
-    "business",
     "politics",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -1654,13 +1654,13 @@
     "sports",
     "sports",
     "business",
-    "sports",
     "sports",
     "sports",
     "sports",
-    "business",
     "sports",
+    "politics",
     "sports",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -1692,7 +1692,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -1770,7 +1770,7 @@
     "sports",
     "sports",
     "sports",
-    "politics",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -1823,7 +1823,7 @@
     "sports",
     "sports",
     "business",
-    "business",
+    "politics",
     "sports",
     "sports",
     "politics",
@@ -1889,8 +1889,8 @@
     "politics",
     "sports",
     "sports",
-    "politics",
     "business",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -1934,7 +1934,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -2010,7 +2010,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -2041,7 +2041,7 @@
     "sports",
     "sports",
     "business",
-    "sports",
+    "business",
     "sports",
     "sports",
     "sports",
@@ -2059,7 +2059,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -2089,7 +2089,7 @@
     "politics",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -2113,10 +2113,10 @@
     "sports",
     "sports",
     "business",
-    "business",
-    "sports",
+    "politics",
     "sports",
     "sports",
+    "politics",
     "sports",
     "politics",
     "sports",
@@ -2187,7 +2187,7 @@
     "sports",
     "sports",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -2292,7 +2292,7 @@
     "sports",
     "sports",
     "politics",
-    "sports",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -2323,7 +2323,7 @@
     "sports",
     "sports",
     "sports",
-    "sports",
+    "politics",
     "sports",
     "business",
     "sports",
@@ -2341,7 +2341,7 @@
     "sports",
     "politics",
     "sports",
-    "business",
+    "politics",
     "sports",
     "sports",
     "sports",
@@ -2388,7 +2388,7 @@
     "business",
     "sports",
     "politics",
-    "business",
+    "politics",
     "business",
     "sports",
     "politics",
