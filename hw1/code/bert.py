@@ -1,6 +1,7 @@
 import argparse
 import logging
 import time
+from typing import Literal
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -12,7 +13,16 @@ from transformers import (
     set_seed,
 )
 
-from dataloader import DATASET_DIR, SPLIT_SEED, classification_metrics, load_csv_splits, save_results
+from dataloader import (
+    DATASET_DIR,
+    SPLIT_SEED,
+    check_fraction,
+    classification_metrics,
+    fraction_tag,
+    load_csv_splits,
+    save_results,
+    subsample_rows,
+)
 
 MODEL_NAME = "bert-base-uncased"
 MAX_LENGTH = 64
@@ -22,6 +32,10 @@ LEARNING_RATE = 2e-5
 WEIGHT_DECAY = 0.01
 WARMUP_RATIO = 0.1
 MAX_GRAD_NORM = 1.0
+NUM_SPECIAL_TOKENS = 2  # [CLS] and [SEP]
+HEAD_SHARE = 128 / 510  # Sun et al. (2019): head 128 + tail 382 content tokens at length 512
+
+Truncation = Literal["head", "tail", "head_tail"]
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +45,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=str, default=MODEL_NAME)
     parser.add_argument("--max_length", type=int, default=MAX_LENGTH)
     parser.add_argument("--seed", type=int, default=SPLIT_SEED, help="training seed; the data split always uses 42")
+    parser.add_argument(
+        "--truncation",
+        choices=["head", "tail", "head_tail"],
+        default="head",
+        help="which part of a long document to keep",
+    )
+    parser.add_argument("--train_fraction", type=float, default=1.0, help="stratified share of the training split")
     return parser.parse_args()
 
 
@@ -54,12 +75,24 @@ def encode_split(
     tokenizer: BertTokenizerFast,
     label2id: dict[str, int],
     max_length: int,
+    truncation: Truncation,
 ) -> EncodedSplit:
-    encodings = tokenizer(
-        texts,
-        truncation=True,
-        max_length=max_length,
-    )
+    budget = max_length - NUM_SPECIAL_TOKENS
+    head_budget = round(HEAD_SHARE * budget)
+    input_ids: list[list[int]] = []
+    for token_ids in tokenizer(texts, add_special_tokens=False)["input_ids"]:
+        if len(token_ids) > budget and truncation == "head":
+            token_ids = token_ids[:budget]
+        elif len(token_ids) > budget and truncation == "tail":
+            token_ids = token_ids[-budget:]
+        elif len(token_ids) > budget:
+            token_ids = token_ids[:head_budget] + token_ids[len(token_ids) - (budget - head_budget) :]
+        input_ids.append([tokenizer.cls_token_id, *token_ids, tokenizer.sep_token_id])
+    encodings = {
+        "input_ids": input_ids,
+        "token_type_ids": [[0] * len(ids) for ids in input_ids],
+        "attention_mask": [[1] * len(ids) for ids in input_ids],
+    }
     encoded_labels = [label2id[label] for label in labels]
     return EncodedSplit(encodings, encoded_labels)
 
@@ -144,10 +177,12 @@ def train(
 
 def main() -> None:
     args = parse_args()
+    check_fraction(args.train_fraction)
     set_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     splits = load_csv_splits(DATASET_DIR / "nyt.csv", seed=SPLIT_SEED)
+    splits["train"].rows = subsample_rows(splits["train"].rows, args.train_fraction, seed=SPLIT_SEED)
     texts = {name: [row["text"] for row in split.rows] for name, split in splits.items()}
     labels = {name: [row["label"] for row in split.rows] for name, split in splits.items()}
 
@@ -163,14 +198,17 @@ def main() -> None:
         label2id=label2id,
     )
     model.to(device)
-    logger.info(f"max_length {args.max_length}, seed {args.seed}, device {device}")
+    logger.info(
+        f"max_length {args.max_length}, truncation {args.truncation}, train fraction {args.train_fraction}, "
+        f"seed {args.seed}, device {device}"
+    )
 
     collator = DataCollatorWithPadding(tokenizer)
     generator = torch.Generator()
     generator.manual_seed(args.seed)
     loaders = {
         name: DataLoader(
-            encode_split(texts[name], labels[name], tokenizer, label2id, args.max_length),
+            encode_split(texts[name], labels[name], tokenizer, label2id, args.max_length, args.truncation),
             batch_size=BATCH_SIZE,
             shuffle=name == "train",
             collate_fn=collator,
@@ -189,11 +227,15 @@ def main() -> None:
     last_metrics = classification_metrics(labels["test"], last_predictions)
     best_metrics = classification_metrics(labels["test"], best_predictions)
 
+    truncation_tag = "" if args.truncation == "head" else f"_{args.truncation}"
     save_results(
-        f"bert_len{args.max_length}_seed{args.seed}",
+        f"bert_len{args.max_length}_seed{args.seed}{truncation_tag}{fraction_tag(args.train_fraction)}",
         {
             "model": args.model,
             "max_length": args.max_length,
+            "truncation": args.truncation,
+            "train_fraction": args.train_fraction,
+            "num_train": len(labels["train"]),
             "seed": args.seed,
             "epochs": EPOCHS,
             "train_seconds": round(train_seconds, 1),
