@@ -29,4 +29,22 @@ for length in 64 32 96 128 192 256 384 512; do
   done
 done
 
+# Extra: learning curve on stratified subsets of the training split.
+for fraction in 0.1 0.25 0.5; do
+  $PYTHON hw1/code/BoW.py --method frequency --train_fraction "$fraction"
+  $PYTHON hw1/code/word2Vec.py --method glove --train_fraction "$fraction"
+  for seed in "${SEEDS[@]}"; do
+    CUDA_VISIBLE_DEVICES=$GPU $PYTHON hw1/code/bert.py --max_length 64 --seed "$seed" --train_fraction "$fraction"
+  done
+done
+
+# Extra: which part of a long document BERT keeps.
+for length in 64 128; do
+  for truncation in tail head_tail; do
+    for seed in "${SEEDS[@]}"; do
+      CUDA_VISIBLE_DEVICES=$GPU $PYTHON hw1/code/bert.py --max_length "$length" --seed "$seed" --truncation "$truncation"
+    done
+  done
+done
+
 $PYTHON hw1/code/summarize.py

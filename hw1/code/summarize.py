@@ -10,6 +10,9 @@ from dataloader import DATASET_DIR, RESULTS_DIR, SPLIT_SEED, load_csv_splits, sa
 SEEDS = [42, 43, 44]
 BERT_LENGTHS = [32, 64, 96, 128, 192, 256, 384, 512]
 INVERSE_REGS = ["0.01", "0.1", "1", "10", "100"]
+TRAIN_FRACTIONS = ["0.1", "0.25", "0.5", "1"]
+TRUNCATION_LENGTHS = [64, 128]
+TRUNCATIONS = ["head", "tail", "head_tail"]
 REQUIRED_LENGTH = 64
 NUM_EXAMPLES = 8
 EXAMPLE_CHARS = 400
@@ -97,6 +100,41 @@ def main() -> None:
             + " | ".join(f"{run['val']['macro_f1']:.4f} / {run['test']['macro_f1']:.4f}" for run in runs)
             + " |"
         )
+
+    lines += [
+        "",
+        "## Learning curve (training fraction; BERT max_length 64, last epoch, 3 seeds)",
+        "",
+        "| Fraction | Train docs | Word frequency BoW | GloVe | BERT-64 |",
+        "|---|---|---|---|---|",
+    ]
+    for value in TRAIN_FRACTIONS:
+        tag = "" if value == "1" else f"_frac{value}"
+        bow = load(f"bow_frequency{tag}")
+        glove = load(f"emb_glove{tag}")["test"]
+        bert_runs = [load(f"bert_len{REQUIRED_LENGTH}_seed{seed}{tag}")["test_last_epoch"] for seed in SEEDS]
+        cells = [
+            f"{bow['test']['accuracy']:.4f} / {bow['test']['macro_f1']:.4f}",
+            f"{glove['accuracy']:.4f} / {glove['macro_f1']:.4f}",
+            f"{mean_std([run['accuracy'] for run in bert_runs])} / {mean_std([run['macro_f1'] for run in bert_runs])}",
+        ]
+        lines.append(f"| {value} | {bow['num_train']} | " + " | ".join(cells) + " |")
+
+    lines += [
+        "",
+        "## BERT truncation strategy (3 seeds, accuracy / macro-F1)",
+        "",
+        "| max_length | checkpoint | " + " | ".join(TRUNCATIONS) + " |",
+        "|---" * (len(TRUNCATIONS) + 2) + "|",
+    ]
+    for length in TRUNCATION_LENGTHS:
+        for key, label in [("test_last_epoch", "last epoch"), ("test_best_dev", "best dev epoch")]:
+            cells = []
+            for truncation in TRUNCATIONS:
+                tag = "" if truncation == "head" else f"_{truncation}"
+                runs = [load(f"bert_len{length}_seed{seed}{tag}")[key] for seed in SEEDS]
+                cells.append(f"{mean_std([run['accuracy'] for run in runs])} / {mean_std([run['macro_f1'] for run in runs])}")
+            lines.append(f"| {length} | {label} | " + " | ".join(cells) + " |")
 
     lines += ["", "## Word embedding coverage on NYT test", "", "| Embedding | vocab | token OOV | type OOV |", "|---|---|---|---|"]
     for name in ["emb_glove", "emb_ag_seed42", "emb_nyt_seed42", "emb_nyt_all_seed42"]:

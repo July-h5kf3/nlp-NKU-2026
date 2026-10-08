@@ -8,7 +8,17 @@ from gensim.models import Word2Vec
 from nltk.tokenize import word_tokenize
 from sklearn.linear_model import LogisticRegression
 
-from dataloader import DATASET_DIR, SPLIT_SEED, classification_metrics, ensure_punkt, load_csv_splits, save_results
+from dataloader import (
+    DATASET_DIR,
+    SPLIT_SEED,
+    check_fraction,
+    classification_metrics,
+    ensure_punkt,
+    fraction_tag,
+    load_csv_splits,
+    save_results,
+    subsample_rows,
+)
 
 DIM = 100
 MAX_ITER = 10000
@@ -25,6 +35,12 @@ def parse_args() -> argparse.Namespace:
         "--nyt_all_text",
         action="store_true",
         help="ablation: train the nyt model on all splits (leaks validation and test text)",
+    )
+    parser.add_argument(
+        "--train_fraction",
+        type=float,
+        default=1.0,
+        help="stratified share of the training split; also limits the nyt Word2Vec corpus",
     )
     return parser.parse_args()
 
@@ -64,14 +80,16 @@ def main() -> None:
         raise ValueError("--train only applies to --method ag or nyt")
     if args.nyt_all_text and args.method != "nyt":
         raise ValueError("--nyt_all_text only applies to --method nyt")
+    check_fraction(args.train_fraction)
     seed = SPLIT_SEED
     ensure_punkt()
     splits = load_csv_splits(DATASET_DIR / "nyt.csv", seed=seed)
+    splits["train"].rows = subsample_rows(splits["train"].rows, args.train_fraction, seed=seed)
     tokens = {name: [word_tokenize(row["text"]) for row in split.rows] for name, split in splits.items()}
     labels = {name: [row["label"] for row in split.rows] for name, split in splits.items()}
 
-    corpus_tag = "_all" if args.nyt_all_text else ""
-    model_name = f"{args.method}{corpus_tag}_seed{args.seed}.w2v"
+    run_tag = ("_all" if args.nyt_all_text else "") + fraction_tag(args.train_fraction)
+    model_name = f"{args.method}{run_tag}_seed{args.seed}.w2v"
     if args.train and args.method == "ag":
         with (DATASET_DIR / "ag.csv").open(newline="", encoding="utf-8") as handle:
             ag_sentences = [word_tokenize(row["text"].lower()) for row in csv.DictReader(handle)]
@@ -88,11 +106,11 @@ def main() -> None:
             for line in handle:
                 word, *values = line.rstrip().split(" ")
                 vectors[word] = np.asarray(values, dtype=np.float32)
-        result_name = "emb_glove"
+        result_name = f"emb_glove{run_tag}"
     else:
         model = Word2Vec.load(str(DATASET_DIR / model_name))
         vectors = {word: model.wv.get_vector(word) for word in model.wv.index_to_key}
-        result_name = f"emb_{args.method}{corpus_tag}_seed{args.seed}"
+        result_name = f"emb_{args.method}{run_tag}_seed{args.seed}"
 
     test_tokens = [token for doc in tokens["test"] for token in doc]
     test_types = set(test_tokens)
@@ -118,6 +136,8 @@ def main() -> None:
             "method": args.method,
             "w2v_seed": None if args.method == "glove" else args.seed,
             "nyt_all_text": args.nyt_all_text,
+            "train_fraction": args.train_fraction,
+            "num_train": len(labels["train"]),
             **oov,
             "saga_iterations": num_iter,
             "converged": num_iter < MAX_ITER,

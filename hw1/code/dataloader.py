@@ -55,6 +55,28 @@ def load_csv_splits(
     return splits
 
 
+def subsample_rows(rows: list[dict[str, str]], fraction: float, *, seed: int = SPLIT_SEED) -> list[dict[str, str]]:
+    """Stratified subset of the training rows, used for learning-curve runs."""
+    if fraction == 1.0:
+        return rows
+    subset, _ = train_test_split(
+        rows,
+        train_size=fraction,
+        random_state=seed,
+        stratify=[row["label"] for row in rows],
+    )
+    return subset
+
+
+def fraction_tag(fraction: float) -> str:
+    return "" if fraction == 1.0 else f"_frac{fraction:g}"
+
+
+def check_fraction(fraction: float) -> None:
+    if not 0.0 < fraction <= 1.0:
+        raise ValueError(f"train_fraction must be in (0, 1], got {fraction}")
+
+
 def ensure_punkt() -> None:
     """Download the NLTK tokenizer data used by word_tokenize if it is missing."""
     try:
