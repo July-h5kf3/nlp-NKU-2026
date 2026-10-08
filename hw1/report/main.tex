@@ -500,7 +500,7 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
 
 \section*{代码与复现}
 
-全部代码、结果文件与运行说明位于 GitHub 仓库 \url{https://github.com/July-h5kf3/nlp-NKU-2026}。\texttt{hw1/code} 中的 \texttt{BoW.py}、\texttt{word2Vec.py}、\texttt{bert.py} 分别对应三个任务，\texttt{stats.py} 统计数据集，\texttt{summarize.py} 汇总结果；每次运行的完整指标（含逐类 P/R/F1、混淆矩阵和测试集预测）保存在 \texttt{hw1/results/} 下的 JSON 文件中，本报告中的所有数字均来自这些文件。在仓库根目录执行以下命令即可复现全部结果，环境配置与数据准备见仓库中的 \texttt{README.md}：
+全部代码与运行说明位于 GitHub 仓库 \url{https://github.com/July-h5kf3/nlp-NKU-2026}。\texttt{hw1/code} 中的 \texttt{BoW.py}、\texttt{word2Vec.py}、\texttt{bert.py} 分别对应三个任务；每次运行的完整指标（含逐类 P/R/F1、混淆矩阵和测试集预测）写入 \texttt{hw1/results/} 下的 JSON 文件（不纳入版本库），本报告中的实验数字均来自这些文件。在仓库根目录执行以下命令即可复现全部结果，环境配置与数据准备见仓库中的 \texttt{README.md}：
 \begin{lstlisting}[language=bash]
 export PYTHONHASHSEED=0
 uv run python hw1/code/BoW.py --method binary          # Task 1

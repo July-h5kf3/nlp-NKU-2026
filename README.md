@@ -13,11 +13,10 @@ CUDA_VISIBLE_DEVICES=0 ./run_all.sh --required   # 只跑主结果表（约 20 �
 CUDA_VISIBLE_DEVICES=0 ./run_all.sh              # 全部实验，含额外实验（约 100 分钟，1 张 H800）
 ```
 
-- 脚本依次执行：检查数据文件（缺失时报错退出）、检查 NLTK `punkt_tab`、数据统计、Task 1–3 的全部必做实验（二元/词频词袋，GloVe，AG News 与 NYT 训练集上训练的 Word2Vec 各 3 个种子，BERT-64 共 3 个种子），不加 `--required` 时再跑全部额外实验（TF-IDF 与调 C、NYT 全文 Word2Vec 泄漏消融、BERT 长度扫描、学习曲线、截断策略），最后运行 `summarize.py` 重新生成 `hw1/results/summary.md`。
+- 脚本依次执行：检查数据文件（缺失时报错退出）、检查 NLTK `punkt_tab`、Task 1–3 的全部必做实验（二元/词频词袋，GloVe，AG News 与 NYT 训练集上训练的 Word2Vec 各 3 个种子，BERT-64 共 3 个种子），不加 `--required` 时再跑全部额外实验（TF-IDF 与调 C、NYT 全文 Word2Vec 泄漏消融、BERT 长度扫描、学习曲线、截断策略）。每次运行的指标写入 `hw1/results/*.json`（不纳入版本库）。
 - `PYTHON` 指定 Python 命令，默认 `uv run python`；没有安装 uv 时自动改用 `.venv/bin/python`，也可以手动指定，例如 `PYTHON=.venv/bin/python ./run_all.sh --required`。
 - `CUDA_VISIBLE_DEVICES` 选择 BERT 使用的 GPU；Word2Vec 和词袋只用 CPU（`--required` 模式的大部分时间花在单线程训练 6 个 Word2Vec 模型上）。
-- `--required` 模式下，`summary.md` 中额外实验的行来自仓库里已提交的结果文件。
-- 在 H800 服务器上从全新克隆实测：`--required` 用时 20 分钟，重新生成的全部指标与 `hw1/results/` 中已提交的结果、报告中的数字逐位一致，`summary.md` 完全相同。完整运行用时 99 分钟，词袋、GloVe、Word2Vec 以及最大长度 32、64 的全部 BERT 运行（含主结果表、学习曲线、长度 64 的截断实验）同样逐位一致；最大长度 128 及以上的部分 BERT 运行受 GPU 浮点运算不确定性影响，会有数篇测试文档的预测不同，均值变化小于种子间的标准差。报告中的数字以仓库中已提交的结果文件为准。
+- 在 H800 服务器上从全新克隆实测：`--required` 用时 20 分钟，重新生成的全部指标与报告中的数字逐位一致。完整运行用时 99 分钟，词袋、GloVe、Word2Vec 以及最大长度 32、64 的全部 BERT 运行（含主结果表、学习曲线、长度 64 的截断实验）同样逐位一致；最大长度 128 及以上的部分 BERT 运行受 GPU 浮点运算不确定性影响，会有数篇测试文档的预测不同，均值变化小于种子间的标准差。
 
 ## 目录结构
 
@@ -29,9 +28,7 @@ hw1/
     BoW.py          # Task 1：Binary BoW / Word Frequency（另附 TF-IDF）+ Logistic Regression
     word2Vec.py     # Task 2：GloVe / Word2Vec(AG News) / Word2Vec(NYT 训练集) 平均词向量 + LR
     bert.py         # Task 3：bert-base-uncased 微调（max_length=64，3 epochs）
-    stats.py        # 数据集统计：划分规模、类别分布、文档长度、各长度下的截断篇数
-    summarize.py    # 汇总 results/*.json，生成 results/summary.md 与错误样例
-  results/          # 每次运行的指标（JSON）与汇总表 summary.md
+  results/          # 运行时生成的指标（JSON，不入库）
   report/           # 实验报告 main.tex / main.pdf
   dataset/          # 数据（不入库，需自行放置，见下）
 ```
@@ -73,7 +70,6 @@ export PYTHONHASHSEED=0
 
 | 任务 | 命令 | 结果文件 |
 |---|---|---|
-| 数据统计 | `uv run python hw1/code/stats.py` | `results/stats.json` |
 | Task 1 Binary BoW | `uv run python hw1/code/BoW.py --method binary` | `results/bow_binary.json` |
 | Task 1 Word Frequency | `uv run python hw1/code/BoW.py --method frequency` | `results/bow_frequency.json` |
 | （额外）TF-IDF | `uv run python hw1/code/BoW.py --method tfidf` | `results/bow_tfidf.json` |
@@ -85,18 +81,11 @@ export PYTHONHASHSEED=0
 | Task 3 BERT | `CUDA_VISIBLE_DEVICES=0 uv run python hw1/code/bert.py --max_length 64 --seed 42` | `results/bert_len64_seed42.json` |
 | （额外）学习曲线 | 三个脚本都支持 `--train_fraction 0.1`（按类别分层抽取训练集子集） | `results/*_frac0.1.json` |
 | （额外）截断策略 | `uv run python hw1/code/bert.py --max_length 128 --truncation head_tail`（可选 `head`/`tail`/`head_tail`） | `results/bert_len128_seed42_head_tail.json` |
-| 汇总 | `uv run python hw1/code/summarize.py` | `results/summary.md`、`results/error_examples.json` |
 
 - NYT 的 Word2Vec 只用训练集正文训练，验证集和测试集文本不参与。
 - 已有 `.w2v` 模型时，去掉 `--train` 即可直接评测。
 - `bert.py` 训练满 3 个 epoch，同时报告末轮模型和验证集 Macro-F1 最优 epoch 的测试结果；`--seed` 只影响训练，数据划分始终使用 seed 42。
 - 每个 JSON 包含验证集与测试集的 Accuracy、Macro-F1、逐类 P/R/F1、混淆矩阵（行为真实标签，按 business/politics/sports 排序）和测试集预测。
-
-一键复现全部结果（3 个种子 × Word2Vec，8 个长度 × 3 个种子的 BERT，调 C、学习曲线和截断策略等额外实验）：
-
-```bash
-CUDA_VISIBLE_DEVICES=0 ./run_all.sh        # 详见“一键复现”
-```
 
 在 H800 上，BERT 长度 64 训练 3 个 epoch 约 1 分钟，长度 512 约 3.5 分钟；三种词袋各 20–110 秒。
 
@@ -118,7 +107,7 @@ Word2Vec 与 BERT 为种子 42/43/44 的均值 ± 样本标准差；其余方法
 | 额外 | BERT，max_length 512，第 3 个 epoch | 0.9931 ± 0.0009 | 0.9838 ± 0.0018 |
 | 额外 | BERT，max_length 128，head+tail 截断，第 3 个 epoch | 0.9881 ± 0.0010 | 0.9728 ± 0.0030 |
 
-完整结果（逐类 F1、长度扫描、调 C、学习曲线、截断策略、词向量 OOV 率）见 [`hw1/results/summary.md`](hw1/results/summary.md)。GPU 浮点运算的非确定性可能使 BERT 结果有极小波动。
+长度扫描、调 C、学习曲线、截断策略和词向量 OOV 率的完整表格见报告；每次运行的逐类指标和预测在运行后写入 `hw1/results/*.json`。GPU 浮点运算的非确定性可能使 BERT 结果有极小波动。
 
 ## 实验设置摘要
 
