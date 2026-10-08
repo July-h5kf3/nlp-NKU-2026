@@ -80,7 +80,7 @@ def encode_split(
     budget = max_length - NUM_SPECIAL_TOKENS
     head_budget = round(HEAD_SHARE * budget)
     input_ids: list[list[int]] = []
-    for token_ids in tokenizer(texts, add_special_tokens=False)["input_ids"]:
+    for token_ids in tokenizer(texts, add_special_tokens=False, verbose=False)["input_ids"]:
         if len(token_ids) > budget and truncation == "head":
             token_ids = token_ids[:budget]
         elif len(token_ids) > budget and truncation == "tail":

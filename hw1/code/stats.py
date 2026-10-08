@@ -29,7 +29,7 @@ def main() -> None:
         texts = [row["text"] for row in split.rows]
         word_lengths = np.array([len(word_tokenize(text)) for text in texts])
         # Lengths include [CLS] and [SEP], matching how truncation counts tokens.
-        wordpiece_lengths = np.array([len(ids) for ids in tokenizer(texts)["input_ids"]])
+        wordpiece_lengths = np.array([len(ids) for ids in tokenizer(texts, verbose=False)["input_ids"]])
         split_stats[name] = {
             "num_docs": len(texts),
             "label_counts": dict(sorted(Counter(row["label"] for row in split.rows).items())),
