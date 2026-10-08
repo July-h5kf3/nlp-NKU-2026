@@ -1,17 +1,18 @@
 import argparse
-from pathlib import Path
+import logging
+import time
 
 import torch
-from sklearn.metrics import accuracy_score, f1_score
 from torch.utils.data import DataLoader, Dataset
 from transformers import (
     BertForSequenceClassification,
     BertTokenizerFast,
     DataCollatorWithPadding,
     get_linear_schedule_with_warmup,
+    set_seed,
 )
 
-from dataloader import load_csv_splits
+from dataloader import DATASET_DIR, SPLIT_SEED, classification_metrics, load_csv_splits, save_results
 
 MODEL_NAME = "bert-base-uncased"
 MAX_LENGTH = 64
@@ -20,12 +21,16 @@ BATCH_SIZE = 32
 LEARNING_RATE = 2e-5
 WEIGHT_DECAY = 0.01
 WARMUP_RATIO = 0.1
+MAX_GRAD_NORM = 1.0
+
+logger = logging.getLogger(__name__)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Fine-tune BERT on NYT.")
     parser.add_argument("--model", type=str, default=MODEL_NAME)
     parser.add_argument("--max_length", type=int, default=MAX_LENGTH)
+    parser.add_argument("--seed", type=int, default=SPLIT_SEED, help="training seed; the data split always uses 42")
     return parser.parse_args()
 
 
@@ -59,32 +64,30 @@ def encode_split(
     return EncodedSplit(encodings, encoded_labels)
 
 
-def evaluate(
+def predict(
     model: BertForSequenceClassification,
     loader: DataLoader,
     device: torch.device,
-) -> tuple[float, float]:
+) -> list[int]:
     model.eval()
-    predictions: list[int] = []
-    gold: list[int] = []
+    predictions: list[torch.Tensor] = []
     with torch.no_grad():
         for batch in loader:
-            labels = batch.pop("labels")
+            batch.pop("labels")
             batch = {key: value.to(device) for key, value in batch.items()}
-            logits = model(**batch).logits
-            predictions.extend(logits.argmax(dim=-1).cpu().tolist())
-            gold.extend(labels.tolist())
-    accuracy = accuracy_score(gold, predictions)
-    macro_f1 = f1_score(gold, predictions, average="macro")
-    return accuracy, macro_f1
+            predictions.append(model(**batch).logits.argmax(dim=-1))
+    return torch.cat(predictions).cpu().tolist()
 
 
 def train(
     model: BertForSequenceClassification,
     train_loader: DataLoader,
     val_loader: DataLoader,
+    val_labels: list[str],
+    id2label: dict[int, str],
     device: torch.device,
-) -> None:
+) -> tuple[list[dict[str, float]], int, dict[str, torch.Tensor]]:
+    """Train for EPOCHS epochs; return per-epoch history, the best-dev epoch and its weights."""
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=LEARNING_RATE,
@@ -97,51 +100,58 @@ def train(
         num_warmup_steps=warmup_steps,
         num_training_steps=total_steps,
     )
+    history: list[dict[str, float]] = []
     best_macro_f1 = -1.0
+    best_epoch = 0
     best_state: dict[str, torch.Tensor] | None = None
 
-    for epoch in range(EPOCHS):
+    for epoch in range(1, EPOCHS + 1):
         model.train()
-        total_loss = 0.0
+        total_loss = torch.zeros((), device=device)
         for batch in train_loader:
             batch = {key: value.to(device) for key, value in batch.items()}
             loss = model(**batch).loss
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
-            total_loss += loss.item()
+            total_loss += loss.detach()
 
-        val_acc, val_macro_f1 = evaluate(model, val_loader, device)
-        print(
-            f"Epoch {epoch + 1}: "
-            f"train loss {total_loss / len(train_loader):.4f}, "
-            f"val accuracy {val_acc:.4f}, "
-            f"val macro F1 {val_macro_f1:.4f}"
+        val_predictions = [id2label[index] for index in predict(model, val_loader, device)]
+        val_metrics = classification_metrics(val_labels, val_predictions)
+        history.append(
+            {
+                "epoch": epoch,
+                "train_loss": total_loss.item() / len(train_loader),
+                "val_accuracy": val_metrics["accuracy"],
+                "val_macro_f1": val_metrics["macro_f1"],
+            }
         )
-        if val_macro_f1 > best_macro_f1:
-            best_macro_f1 = val_macro_f1
+        logger.info(
+            f"Epoch {epoch}: train loss {history[-1]['train_loss']:.4f}, "
+            f"val accuracy {val_metrics['accuracy']:.4f}, val macro F1 {val_metrics['macro_f1']:.4f}"
+        )
+        if val_metrics["macro_f1"] > best_macro_f1:
+            best_macro_f1 = val_metrics["macro_f1"]
+            best_epoch = epoch
             best_state = {key: value.detach().cpu().clone() for key, value in model.state_dict().items()}
 
     if best_state is None:
         raise RuntimeError("training did not produce a checkpoint")
-    model.load_state_dict(best_state)
+    return history, best_epoch, best_state
 
 
 def main() -> None:
-    seed = 42
     args = parse_args()
-    torch.manual_seed(seed)
+    set_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    nyt_path = Path(__file__).resolve().parent.parent / "dataset" / "nyt.csv"
-    splits = load_csv_splits(nyt_path, seed=seed)
-    train_rows = splits["train"].rows
-    val_rows = splits["val"].rows
-    test_rows = splits["test"].rows
+    splits = load_csv_splits(DATASET_DIR / "nyt.csv", seed=SPLIT_SEED)
+    texts = {name: [row["text"] for row in split.rows] for name, split in splits.items()}
+    labels = {name: [row["label"] for row in split.rows] for name, split in splits.items()}
 
-    label_names = sorted({row["label"] for row in train_rows})
+    label_names = sorted(set(labels["train"]))
     label2id = {name: index for index, name in enumerate(label_names)}
     id2label = {index: name for name, index in label2id.items()}
 
@@ -153,48 +163,52 @@ def main() -> None:
         label2id=label2id,
     )
     model.to(device)
-
-    print(f"max_length: {args.max_length}")
-    train_set = encode_split(
-        [row["text"] for row in train_rows],
-        [row["label"] for row in train_rows],
-        tokenizer,
-        label2id,
-        args.max_length,
-    )
-    val_set = encode_split(
-        [row["text"] for row in val_rows],
-        [row["label"] for row in val_rows],
-        tokenizer,
-        label2id,
-        args.max_length,
-    )
-    test_set = encode_split(
-        [row["text"] for row in test_rows],
-        [row["label"] for row in test_rows],
-        tokenizer,
-        label2id,
-        args.max_length,
-    )
+    logger.info(f"max_length {args.max_length}, seed {args.seed}, device {device}")
 
     collator = DataCollatorWithPadding(tokenizer)
     generator = torch.Generator()
-    generator.manual_seed(seed)
-    train_loader = DataLoader(
-        train_set,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        collate_fn=collator,
-        generator=generator,
-    )
-    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collator)
-    test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collator)
+    generator.manual_seed(args.seed)
+    loaders = {
+        name: DataLoader(
+            encode_split(texts[name], labels[name], tokenizer, label2id, args.max_length),
+            batch_size=BATCH_SIZE,
+            shuffle=name == "train",
+            collate_fn=collator,
+            generator=generator if name == "train" else None,
+        )
+        for name in splits
+    }
 
-    train(model, train_loader, val_loader, device)
-    acc, macro_f1 = evaluate(model, test_loader, device)
-    print(f"Accuracy: {acc:.4f}")
-    print(f"Macro F1: {macro_f1:.4f}")
+    start = time.perf_counter()
+    history, best_epoch, best_state = train(model, loaders["train"], loaders["val"], labels["val"], id2label, device)
+    train_seconds = time.perf_counter() - start
+
+    last_predictions = [id2label[index] for index in predict(model, loaders["test"], device)]
+    model.load_state_dict(best_state)
+    best_predictions = [id2label[index] for index in predict(model, loaders["test"], device)]
+    last_metrics = classification_metrics(labels["test"], last_predictions)
+    best_metrics = classification_metrics(labels["test"], best_predictions)
+
+    save_results(
+        f"bert_len{args.max_length}_seed{args.seed}",
+        {
+            "model": args.model,
+            "max_length": args.max_length,
+            "seed": args.seed,
+            "epochs": EPOCHS,
+            "train_seconds": round(train_seconds, 1),
+            "history": history,
+            "best_epoch": best_epoch,
+            "test_last_epoch": last_metrics,
+            "test_best_dev": best_metrics,
+            "test_predictions_last_epoch": last_predictions,
+            "test_predictions_best_dev": best_predictions,
+        },
+    )
+    print(f"Last epoch ({EPOCHS}) accuracy: {last_metrics['accuracy']:.4f}, macro F1: {last_metrics['macro_f1']:.4f}")
+    print(f"Best dev epoch ({best_epoch}) accuracy: {best_metrics['accuracy']:.4f}, macro F1: {best_metrics['macro_f1']:.4f}")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     main()
