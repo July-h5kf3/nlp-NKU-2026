@@ -4,9 +4,25 @@
 
 在 NYT 三类新闻（sports / politics / business）上比较词袋、静态词向量和 BERT，在测试集上报告 Accuracy 与 Macro-F1。
 
+## 一键复现
+
+准备好[环境](#环境)和[数据](#数据)后，在仓库根目录执行：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 ./run_all.sh --required   # 只跑主结果表（约 20 分钟，1 张 H800）
+CUDA_VISIBLE_DEVICES=0 ./run_all.sh              # 全部实验，含额外实验（约 100 分钟，1 张 H800）
+```
+
+- 脚本依次执行：检查数据文件（缺失时报错退出）、检查 NLTK `punkt_tab`、数据统计、Task 1–3 的全部必做实验（二元/词频词袋，GloVe，AG News 与 NYT 训练集上训练的 Word2Vec 各 3 个种子，BERT-64 共 3 个种子），不加 `--required` 时再跑全部额外实验（TF-IDF 与调 C、NYT 全文 Word2Vec 泄漏消融、BERT 长度扫描、学习曲线、截断策略），最后运行 `summarize.py` 重新生成 `hw1/results/summary.md`。
+- `PYTHON` 指定 Python 命令，默认 `uv run python`；没有安装 uv 时自动改用 `.venv/bin/python`，也可以手动指定，例如 `PYTHON=.venv/bin/python ./run_all.sh --required`。
+- `CUDA_VISIBLE_DEVICES` 选择 BERT 使用的 GPU；Word2Vec 和词袋只用 CPU（`--required` 模式的大部分时间花在单线程训练 6 个 Word2Vec 模型上）。
+- `--required` 模式下，`summary.md` 中额外实验的行来自仓库里已提交的结果文件。
+- 在 H800 服务器上从全新克隆实测：`--required` 用时 20 分钟，重新生成的全部指标与 `hw1/results/` 中已提交的结果、报告中的数字逐位一致，`summary.md` 完全相同。完整运行用时 99 分钟，词袋、GloVe、Word2Vec 以及最大长度 32、64 的全部 BERT 运行（含主结果表、学习曲线、长度 64 的截断实验）同样逐位一致；最大长度 128 及以上的部分 BERT 运行受 GPU 浮点运算不确定性影响，会有数篇测试文档的预测不同，均值变化小于种子间的标准差。报告中的数字以仓库中已提交的结果文件为准。
+
 ## 目录结构
 
 ```
+run_all.sh          # 一键复现脚本（见上）
 hw1/
   code/
     dataloader.py   # 读取 nyt.csv，按标签分层随机划分 80/10/10（seed=42）；评测与结果保存工具
@@ -15,7 +31,6 @@ hw1/
     bert.py         # Task 3：bert-base-uncased 微调（max_length=64，3 epochs）
     stats.py        # 数据集统计：划分规模、类别分布、文档长度、各长度下的截断篇数
     summarize.py    # 汇总 results/*.json，生成 results/summary.md 与错误样例
-  run_all.sh        # 一键复现全部结果（含额外实验）
   results/          # 每次运行的指标（JSON）与汇总表 summary.md
   report/           # 实验报告 main.tex / main.pdf
   dataset/          # 数据（不入库，需自行放置，见下）
@@ -80,7 +95,7 @@ export PYTHONHASHSEED=0
 一键复现全部结果（3 个种子 × Word2Vec，8 个长度 × 3 个种子的 BERT，调 C、学习曲线和截断策略等额外实验）：
 
 ```bash
-GPU=0 bash hw1/run_all.sh        # 可用 PYTHON=".venv/bin/python" 替换解释器
+CUDA_VISIBLE_DEVICES=0 ./run_all.sh        # 详见“一键复现”
 ```
 
 在 H800 上，BERT 长度 64 训练 3 个 epoch 约 1 分钟，长度 512 约 3.5 分钟；三种词袋各 20–110 秒。

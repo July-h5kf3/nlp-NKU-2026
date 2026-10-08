@@ -143,6 +143,7 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
 每个 epoch 结束后在验证集上计算 Macro-F1。本实验同时报告两个测试结果：（1）训练满 3 个 epoch 后的模型（作业要求的设置，下文记为“末轮”）；（2）验证集 Macro-F1 最高的 epoch 对应的检查点（下文记为“验证集最优”）。
 
 \section{实验设置}
+\label{sec:setup}
 
 主要超参数见表~\ref{tab:hp}。词袋与词向量实验的 Logistic Regression 使用默认 $C=1$，主结果不调参；第~\ref{sec:bow} 节另外给出用验证集选择 $C$ 的额外实验。
 
@@ -169,7 +170,7 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
   \end{tabular}
 \end{table}
 
-\textbf{随机性。}数据划分的种子始终为 42。Logistic Regression 固定 \texttt{random\_state}，同一输入下结果确定，因此词袋和 GloVe 只运行一次。Word2Vec 的训练结果依赖随机初始化和负采样，BERT 依赖分类头初始化、dropout 和数据顺序，因此这两类方法各用 3 个随机种子（42、43、44）重复实验，报告均值 $\pm$ 样本标准差（$n-1$ 归一化）。BERT 用 \texttt{transformers.set\_seed} 同时固定 Python、NumPy 与 PyTorch（含 CUDA）的随机数；GPU 上的浮点运算仍可能带来极小的不确定性。
+\textbf{随机性。}数据划分的种子始终为 42。Logistic Regression 固定 \texttt{random\_state}，同一输入下结果确定，因此词袋和 GloVe 只运行一次。Word2Vec 的训练结果依赖随机初始化和负采样，BERT 依赖分类头初始化、dropout 和数据顺序，因此这两类方法各用 3 个随机种子（42、43、44）重复实验，报告均值 $\pm$ 样本标准差（$n-1$ 归一化）。BERT 用 \texttt{transformers.set\_seed} 同时固定 Python、NumPy 与 PyTorch（含 CUDA）的随机数；GPU 上的浮点运算仍可能带来极小的不确定性：用 \texttt{run\_all.sh} 完整重跑一次，词袋、GloVe、Word2Vec 以及最大长度 32、64 的全部 BERT 运行（含主结果表）与本报告的结果逐位一致，而最大长度 128 及以上的部分 BERT 运行会有数篇测试文档的预测不同，相应均值的变化小于种子间的标准差。
 
 \textbf{实验环境。}所有实验在一台配有 8 张 NVIDIA H800（80 GB）的服务器上完成，BERT 每次只使用一张 GPU（驱动 570.124.06，CUDA 12.8），CPU 为 Intel Xeon Platinum 8468V。软件版本为 Python 3.12.13、PyTorch 2.11.0、Transformers 5.17.0、scikit-learn 1.9.1、gensim 4.4.0、NLTK 3.10.3、NumPy 2.5.3。运行时间方面，三种词袋的向量化与 Logistic Regression 拟合分别耗时 35.4、109.8、22.0 秒（saga 分别迭代 323、1851、50 次，均已收敛）；BERT 在最大长度 64 下训练 3 个 epoch（含每轮验证）约 48--56 秒，最大长度 512 约 210 秒。
 
@@ -470,7 +471,7 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
   \end{tabular}}
 \end{table}
 
-两个长度下，只保留结尾都是最差的：长度 64 时末轮 Accuracy 比只保留开头低 0.98 个百分点，Macro-F1 低 1.85 个百分点；长度 128 时差距缩小到 0.35 和 0.54 个百分点。新闻的开头通常交代事件的主体和背景，类别信息最集中，这与 Park 等~\cite{park2022efficient} 观察到的“关键信息常在开头”一致。head+tail 的表现与长度有关：长度 64 时开头只剩 16 个子词，末轮 Macro-F1 比 head 低 0.50 个百分点，而按验证集选择检查点时又略高 0.19 个百分点，两种策略在误差范围内难分高下；长度 128 时开头有 32 个子词，head+tail 的两种检查点都优于 head（末轮 Accuracy 高 0.11、Macro-F1 高 0.35 个百分点，约为一个标准差），与 Sun 等的结论方向一致。可见结尾能提供与开头互补的信息，但前提是开头保留的部分足够长。
+两个长度下，只保留结尾都是最差的：长度 64 时末轮 Accuracy 比只保留开头低 0.98 个百分点，Macro-F1 低 1.85 个百分点；长度 128 时差距缩小到 0.35 和 0.54 个百分点。新闻的开头通常交代事件的主体和背景，类别信息最集中，这与 Park 等~\cite{park2022efficient} 观察到的“关键信息常在开头”一致。head+tail 的表现与长度有关：长度 64 时开头只剩 16 个子词，末轮 Macro-F1 比 head 低 0.50 个百分点，而按验证集选择检查点时又略高 0.19 个百分点，两种策略在误差范围内难分高下；长度 128 时开头有 32 个子词，head+tail 的两种检查点都优于 head（末轮 Accuracy 高 0.11、Macro-F1 高 0.35 个百分点，约为一个标准差），与 Sun 等的结论方向一致；但长度 128 的运行不能逐位复现（见第~\ref{sec:setup} 节），重跑一次后两者末轮 Accuracy 的先后关系发生反转，因此这一优势只是弱证据。可见结尾能提供与开头互补的信息，但前提是开头保留的部分足够长。
 
 \subsection{错误分析}
 \label{sec:error}
@@ -492,7 +493,7 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
   \item \textbf{词向量的质量与覆盖率决定效果。}GloVe 词表最大、测试集 OOV 率最低，结果最好；AG News 模型受领域差异和词表较小的影响，结果最差。NYT 词向量即使见过测试正文，提升也只有约 0.1 个百分点，与种子波动相当。
   \item \textbf{BERT 的瓶颈是输入长度。}在长度 64 下，BERT 只读到开头的 62 个子词，仍超过基于全文的 Word2Vec；随着最大长度增加，其结果持续提升，在 256 和 512 时超过词频词袋。错误样例表明，长度 64 时的多数额外错误来自导语缺少类别线索。
   \item \textbf{错误集中在商业与政治之间。}体育类几乎没有错误，Macro-F1 的差距主要由商业与政治两类之间的混淆决定。
-  \item \textbf{额外实验。}学习曲线显示，只有 921 篇训练文档时 GloVe 与词袋相当，数据越多词袋的优势越明显，长度 64 的 BERT 在各规模下都低于词袋；截断策略实验显示，文档开头是最有效的输入片段，长度 128 时同时保留开头和结尾还能再提高约 0.35 个百分点的 Macro-F1。
+  \item \textbf{额外实验。}学习曲线显示，只有 921 篇训练文档时 GloVe 与词袋相当，数据越多词袋的优势越明显，长度 64 的 BERT 在各规模下都低于词袋；截断策略实验显示，文档开头是最有效的输入片段，长度 128 时同时保留开头和结尾的 Macro-F1 高约 0.35 个百分点，但差距在噪声范围内。
 \end{itemize}
 
 \textbf{不足与改进方向。}（1）BERT 在长度 512 时仍有 931 篇测试文档被截断，可以把长文档分段编码，再聚合各段的 \texttt{[CLS]} 表示，或使用 Longformer~\cite{beltagy2020longformer} 等长文档模型；（2）平均词向量可以改为 TF-IDF 或 SIF~\cite{arora2017simple} 加权平均，减弱常见词的稀释作用；（3）可以在损失中按类别加权，观察 Macro-F1 是否进一步提高；（4）BERT 的学习率、批大小等只取了一组设置，长输入在 3 个 epoch 内尚未饱和，可以进一步搜索；（5）测试集中少数类各只有约 144 篇，方法之间常常只差几篇文档，更可靠的比较需要更多随机种子或交叉验证。
@@ -510,7 +511,7 @@ uv run python hw1/code/word2Vec.py --method nyt --train --seed 42
 uv run python hw1/code/bert.py --max_length 64 --seed 42   # Task 3
 uv run python hw1/code/bert.py --max_length 128 --truncation head_tail  # extra
 uv run python hw1/code/BoW.py --method frequency --train_fraction 0.1  # extra
-bash hw1/run_all.sh                                    # all runs, including extras
+./run_all.sh --required    # main table only; drop --required to run all extras
 \end{lstlisting}
 
 \printbibliography[heading=bibintoc, title=\ebibname]
