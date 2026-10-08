@@ -2,6 +2,7 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepackage{placeins}
+\graphicspath{{figures/}}
 \addbibresource{reference.bib}
 \setlength{\emergencystretch}{2em}
 
@@ -17,7 +18,7 @@
 \maketitle
 
 \begin{abstract}
-本实验在 NYT 三类新闻分类（体育、政治、商业）上比较三类文本表示：词袋模型、静态词向量和预训练语言模型 BERT。所有方法共用同一个分层随机划分（训练、验证、测试为 80\%/10\%/10\%），在 1152 篇测试文档上报告 Accuracy 与 Macro-F1。按作业要求的六个设置，测试集结果依次为：二元词袋 0.9896 / 0.9741，词频词袋 0.9913 / 0.9779；GloVe（100 维）0.9852 / 0.9646，在 AG News 上训练的 Word2Vec \pmstd{0.9760}{0.0005} / \pmstd{0.9415}{0.0016}，只在 NYT 训练集上训练的 Word2Vec \pmstd{0.9806}{0.0018} / \pmstd{0.9524}{0.0037}；bert-base-uncased 在最大长度 64、训练 3 个 epoch 后为 \pmstd{0.9826}{0.0009} / \pmstd{0.9615}{0.0006}（Word2Vec 与 BERT 为 3 个随机种子的均值 $\pm$ 标准差）。在作业设置下，词频词袋最好；BERT 只读入每篇新闻开头的 62 个子词，低于看到全文的词袋和 GloVe。额外实验表明，把 BERT 的最大长度增加到 256 和 512 后，其均值超过词频词袋。逐类指标显示，各方法的错误主要集中在商业与政治两类之间。
+本实验在 NYT 三类新闻分类（体育、政治、商业）上比较三类文本表示：词袋模型、静态词向量和预训练语言模型 BERT。所有方法共用同一个分层随机划分（训练、验证、测试为 80\%/10\%/10\%），在 1152 篇测试文档上报告 Accuracy 与 Macro-F1。按作业要求的六个设置，测试集结果依次为：二元词袋 0.9896 / 0.9741，词频词袋 0.9913 / 0.9779；GloVe（100 维）0.9852 / 0.9646，在 AG News 上训练的 Word2Vec \pmstd{0.9760}{0.0005} / \pmstd{0.9415}{0.0016}，只在 NYT 训练集上训练的 Word2Vec \pmstd{0.9806}{0.0018} / \pmstd{0.9524}{0.0037}；bert-base-uncased 在最大长度 64、训练 3 个 epoch 后为 \pmstd{0.9826}{0.0009} / \pmstd{0.9615}{0.0006}（Word2Vec 与 BERT 为 3 个随机种子的均值 $\pm$ 标准差）。在作业设置下，词频词袋最好；BERT 只读入每篇新闻开头的 62 个子词，低于看到全文的词袋和 GloVe。额外实验表明，把 BERT 的最大长度增加到 256 和 512 后，其均值超过词频词袋。逐类指标显示，各方法的错误主要集中在商业与政治两类之间。学习曲线和截断策略两组额外实验进一步表明，词袋在各训练规模下都不弱于 BERT（长度 64），而文档开头是 BERT 最有效的输入片段。
 \keywords{文本分类；词袋模型；Word2Vec；GloVe；BERT；Logistic Regression}
 \end{abstract}
 
@@ -96,7 +97,14 @@ p_j=\frac{\exp(z_j)}{\sum_{k=1}^{3}\exp(z_k)},
 \end{equation}
 词表外（OOV）的词不参与平均；若 $m=0$ 则取零向量（本实验的测试集中没有出现这种情况）。分类器、划分和评价方式与词袋实验相同，结果差异只来自词向量的来源。
 
-\textbf{GloVe}~\cite{pennington2014glove} 是基于全局共现统计的词向量。记 $X_{ij}$ 为词 $i$ 与词 $j$ 在窗口内的共现次数，GloVe 用加权最小二乘让词向量内积加偏置项拟合共现次数的\emph{对数}：$\mathbf{e}_i^{\top}\tilde{\mathbf{e}}_j+b_i+\tilde{b}_j\approx\log X_{ij}$。本实验直接使用公开的 glove.6B 100 维向量（在 Wikipedia 2014 与 Gigaword 5 上训练，词表 400000），不在 NYT 上更新。
+\textbf{GloVe}~\cite{pennington2014glove} 是基于全局共现统计的词向量。记 $X_{ij}$ 为词 $i$ 与词 $j$ 在窗口内的共现次数，GloVe 用加权最小二乘让词向量内积加偏置项拟合共现次数的\emph{对数}：$\mathbf{e}_i^{\top}\tilde{\mathbf{e}}_j+b_i+\tilde{b}_j\approx\log X_{ij}$。本实验直接使用公开的 glove.6B 100 维向量（在 Wikipedia 2014 与 Gigaword 5 上训练，词表 400000），不在 NYT 上更新。图~\ref{fig:glove} 是 GloVe 论文中说明其动机的例子：单独的共现概率难以区分相关与无关的上下文词，共现概率的比值则可以。
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.62\textwidth]{glove_cooccurrence_table.pdf}
+  \caption{GloVe 论文中的共现概率示例（60 亿词语料）。与 ice 相关的 solid 使比值远大于 1，与 steam 相关的 gas 使比值远小于 1，而 water、fashion 这类与两者都相关或都无关的词比值接近 1。GloVe 因此直接对共现统计建模。图片来源：Pennington et al., 2014~\cite{pennington2014glove}，表 1}
+  \label{fig:glove}
+\end{figure}
 
 \textbf{Word2Vec}~\cite{mikolov2013efficient,mikolov2013distributed} 采用 skip-gram 结构：给定中心词，预测窗口内的上下文词，并用负采样代替对整个词表的 Softmax 归一化。本实验用 gensim~\cite{rehurek2010gensim} 自行训练两个模型，超参数相同（表~\ref{tab:hp}）：
 \begin{itemize}
@@ -105,11 +113,32 @@ p_j=\frac{\exp(z_j)}{\sum_{k=1}^{3}\exp(z_k)},
 \end{itemize}
 作为消融，第~\ref{sec:emb} 节还报告了用 NYT 全部正文（含验证集和测试集）训练的模型，以衡量这种转导式泄漏的影响。
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.72\textwidth]{word2vec_cbow_skipgram.pdf}
+  \caption{Word2Vec 的两种结构：CBOW 用窗口内的上下文词预测中心词 $w(t)$，skip-gram 用中心词预测上下文词。本实验使用右侧的 skip-gram。图片来源：Mikolov et al., 2013~\cite{mikolov2013efficient}，图 1}
+  \label{fig:word2vec}
+\end{figure}
+
 \subsection{预训练语言模型 BERT}
 
-BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 Transformer 编码器。文本先被切成 WordPiece 子词，每层自注意力同时读取左右两侧的上下文，因此同一个词在不同语境下的表示不同，这是它与静态词向量的根本区别。本实验使用 bert-base-uncased（12 层、12 个注意力头、隐藏维度 768、词表 30522），通过 Hugging Face Transformers~\cite{wolf2020transformers} 加载。
+BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 Transformer 编码器。文本先被切成 WordPiece 子词，每层自注意力同时读取左右两侧的上下文，因此同一个词在不同语境下的表示不同，这是它与静态词向量的根本区别。本实验使用 bert-base-uncased（12 层、12 个注意力头、隐藏维度 768、词表 30522），通过 Hugging Face Transformers~\cite{wolf2020transformers} 加载。图~\ref{fig:bert-overview} 展示了 BERT 先预训练、再在下游任务上微调的流程。
 
-输入序列以 \texttt{[CLS]} 开头、以 \texttt{[SEP]} 结尾。按作业要求，最大长度为 64，超出部分从末尾截断；这 64 个位置包含两个特殊符号，因此每篇新闻实际只保留开头的 62 个子词。\texttt{[CLS]} 的最后一层隐状态经过 BERT 的 pooler（全连接层加 tanh），再经 dropout 输入随机初始化的线性分类头，输出三个 logit。微调时分类头与全部预训练参数一起更新，训练 3 个 epoch。
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{bert_pretrain_finetune.pdf}
+  \caption{BERT 的预训练与微调流程。微调时除输出层外沿用预训练的结构和参数；本实验是单文本分类，只在 \texttt{[CLS]} 位置的输出 $C$ 上接分类头。图片来源：Devlin et al., 2019~\cite{devlin2019bert}，图 1}
+  \label{fig:bert-overview}
+\end{figure}
+
+输入序列以 \texttt{[CLS]} 开头、以 \texttt{[SEP]} 结尾。按作业要求，最大长度为 64，超出部分从末尾截断；这 64 个位置包含两个特殊符号，因此每篇新闻实际只保留开头的 62 个子词。\texttt{[CLS]} 的最后一层隐状态经过 BERT 的 pooler（全连接层加 tanh），再经 dropout 输入随机初始化的线性分类头，输出三个 logit。微调时分类头与全部预训练参数一起更新，训练 3 个 epoch。每个位置的输入向量由词元嵌入、句段嵌入和位置嵌入相加得到（图~\ref{fig:bert-input}）。
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.82\textwidth]{bert_input_representation.pdf}
+  \caption{BERT 的输入表示：词元嵌入、句段嵌入与位置嵌入逐位相加。本实验的输入只有一段文本，句段嵌入均为 $E_A$；bert-base-uncased 只有 512 个位置嵌入，这也是其输入长度的上限。图片来源：Devlin et al., 2019~\cite{devlin2019bert}，图 2}
+  \label{fig:bert-input}
+\end{figure}
 
 每个 epoch 结束后在验证集上计算 Macro-F1。本实验同时报告两个测试结果：（1）训练满 3 个 epoch 后的模型（作业要求的设置，下文记为“末轮”）；（2）验证集 Macro-F1 最高的 epoch 对应的检查点（下文记为“验证集最优”）。
 
@@ -184,6 +213,8 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
 
 两种必做的词袋表示都很强。词频的 Accuracy 比二元词袋高 0.17 个百分点（测试集上相差 2 篇文档），Macro-F1 高 0.38 个百分点。保留出现次数能区分“顺带提到一次”和“反复出现”的类别词，例如一篇偶尔提到 \emph{market} 的体育报道，与反复出现 \emph{market}、\emph{bank}、\emph{percent} 的商业报道。从 Logistic Regression 的权重看，二元词袋中商业类权重最大的词包括 \emph{company}、\emph{companies}、\emph{market}、\emph{bank}，政治类包括 \emph{state}、\emph{washington}、\emph{republican}、\emph{obama}，体育类包括 \emph{players}、\emph{league}、\emph{game}、\emph{team}，都是直观的类别标志词。额外对照的 TF-IDF（0.9896 / 0.9751）与二元词袋的 Accuracy 相同，在默认 $C=1$ 下没有超过词频。
 
+词袋在本任务上的优势与已有文献一致。Joachims~\cite{joachims1998text} 指出，文本分类的特征维度很高但大多数特征都与类别相关，文档向量稀疏，而且多数文本分类问题线性可分，因此线性模型很适合词袋特征。Wang 和 Manning~\cite{wang2012baselines} 发现，在主题分类上，基于词袋（及二元组）的简单线性模型是很难超越的基线；fastText~\cite{joulin2017bag} 也表明，在 AG News 等新闻主题分类数据集上，基于 n-gram 词袋的线性模型与当时的深度模型精度相当。NYT 的三类划分同样以主题为主，类别几乎由用词决定，词袋表现最好并不意外。
+
 \textbf{正则强度（额外）。}表~\ref{tab:bow-c} 给出用验证集选择 $C\in\{0.01,0.1,1,10,100\}$ 的结果。二元词袋和词频在 $C\ge0.1$ 时测试结果完全不变，正则强度基本不影响它们。二元词袋的验证集 Macro-F1 在 $C=0.01$ 时略高，但对应的测试 Macro-F1 反而下降到 0.9681，说明在每类只有约 144 篇的少数类验证样本上，这样小的差异很难可靠地区分不同设置。TF-IDF 特征经过 $\ell_2$ 归一化，数值尺度小，需要较弱的正则：$C=0.01$ 时模型把所有文档都判为体育类（Macro-F1 0.2857），验证集选出的 $C=100$ 在测试集上达到 0.9922 / 0.9812，是所有词袋设置中最高的。主结果仍按作业要求使用默认 $C=1$。
 
 \begin{table}[htbp]
@@ -228,6 +259,10 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
 
 与最好的词频词袋相比，GloVe 的 Accuracy 低 0.61 个百分点（7 篇文档），Macro-F1 低 1.33 个百分点。词袋为每个词保留独立维度，类别标志词可以直接进入线性分类器；平均词向量先把词压缩到 100 维，再对整篇近 800 个词取平均，少数关键的类别词会被大量通用词稀释。在本数据集类别用词差别明显的情况下，保留词的身份更有利于线性分类。
 
+文献对平均池化的局限有较系统的讨论。Iyyer 等~\cite{iyyer2015deep} 表明，对词向量做无序平均再接深层网络，在情感和问答分类上就能与依赖句法结构的模型相当；Shen 等~\cite{shen2018baseline} 进一步发现，对主题分类而言词序信息的贡献很小，简单的平均或最大池化就能接近 CNN 和 LSTM，词序在情感分析中更重要。本任务是主题分类，因此丢失词序不是主要瓶颈，更关键的是\emph{均匀}平均：每个词的权重只由出现次数决定，高频的通用词主导了文档向量。Arora 等~\cite{arora2017simple} 提出按词频对词向量加权并去除公共主成分，可以明显改善平均词向量。相比之下，词袋上的 Logistic Regression 为每个词学习独立的权重，相当于有监督地完成了这种加权。
+
+领域差异也影响静态词向量。AG News 由新闻标题加一两句摘要组成，NYT 则是平均近 800 词的长篇报道，用词分布不同。Gururangan 等~\cite{gururangan2020dont} 对预训练语言模型的研究表明，表示学习语料与目标领域越接近，下游任务效果越好。本实验的静态词向量也呈现同样的规律：NYT 模型的训练文档数只有 AG News 的约十分之一，结果仍高于 AG News 模型，测试集 OOV 率也更低（表~\ref{tab:oov}）。
+
 \subsection{预训练语言模型 BERT}
 \label{sec:bert}
 
@@ -257,6 +292,8 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
 \end{table}
 
 在作业设置下，BERT 的 Accuracy（\pmstd{0.9826}{0.0009}）低于词频词袋 0.87 个百分点（约 10 篇文档），也略低于 GloVe，但高于两个 Word2Vec 模型。原因在于输入长度：BERT 只看到每篇新闻开头的 62 个子词，而测试集文档的子词数中位数约为 889，词袋和词向量则使用全文。新闻的导语常常是场景描写或人物故事，类别线索可能要到后文才出现（见第~\ref{sec:error} 节）。即便如此，BERT 用不到全文 10\% 的内容就超过了基于全文的 Word2Vec，说明上下文相关的预训练表示信息密度更高。
+
+截断是 BERT 处理长文档的通行做法：自注意力的计算量和显存随序列长度二次增长，位置嵌入也只有 512 个，Longformer~\cite{beltagy2020longformer} 等长文档模型正是为突破这一限制而提出。Park 等~\cite{park2022efficient} 在多个长文档分类数据集上的比较发现，只保留前 512 个 token 的 BERT 基线往往不逊于 Longformer 等更复杂的模型，说明很多文档的关键信息集中在开头；但当关键信息出现在后文时，挑选后文片段的方法更有优势。第~\ref{sec:truncation} 节的截断策略实验在 NYT 上检验了这一点。
 
 \subsection{逐类指标与混淆矩阵}
 \label{sec:perclass}
@@ -352,6 +389,89 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
 
 两项指标随最大长度大体单调上升，其中从 32 到 128 的提升最快：长度 32 时 Accuracy 只有 0.9664，低于所有其他方法；从长度 96 起，两项指标均超过 GloVe。之后的增益逐渐变小，256 与 384 的差别在一个标准差以内。256 和 512 的均值超过词频词袋，512 的 Accuracy 高 0.18 个百分点，Macro-F1 高 0.59 个百分点；不过 256 与词频词袋的差距小于种子间的标准差。Accuracy 与 Macro-F1 的差距随长度从 3.41 个百分点（长度 32）缩小到 0.93 个百分点（长度 512），说明保留更多正文主要改善了少数类。24 次运行中，只有长度 64 的两个种子在第 2 个 epoch、长度 384 的一个种子在第 1 个 epoch 达到验证集最优，其余都在第 3 个 epoch 最优，说明较长输入在 3 个 epoch 内仍未饱和。
 
+\subsection{额外实验：学习曲线}
+\label{sec:learning-curve}
+
+为比较各表示对标注数据量的依赖，从训练集中按类别分层抽取 10\%、25\%、50\% 的文档（抽样种子 42，验证集和测试集不变），分别训练词频词袋、GloVe 和 BERT（长度 64，3 个 epoch，其余超参数不变）。BERT 用 3 个种子，词袋和 GloVe 是确定性的，各运行一次；注意每个比例只抽了一次子集，子集抽样本身带来的波动没有估计。结果见表~\ref{tab:learning-curve} 和图~\ref{fig:learning-curve}。
+
+\begin{table}[htbp]
+  \centering
+  \caption{不同训练集规模下的测试结果（Accuracy / Macro-F1，额外实验）。BERT 为长度 64、末轮模型，3 个种子的均值 $\pm$ 标准差}
+  \label{tab:learning-curve}
+  \small
+  \begin{tabular}{rrccc}
+    \toprule
+    比例 & 训练篇数 & 词频词袋 & GloVe & BERT（长度 64） \\
+    \midrule
+    10\% & 921 & 0.9731 / 0.9392 & 0.9748 / 0.9384 & \pmstd{0.9644}{0.0117} / \pmstd{0.9155}{0.0300} \\
+    25\% & 2303 & 0.9818 / 0.9582 & 0.9792 / 0.9483 & \pmstd{0.9760}{0.0022} / \pmstd{0.9471}{0.0054} \\
+    50\% & 4607 & 0.9887 / 0.9720 & 0.9844 / 0.9613 & \pmstd{0.9795}{0.0020} / \pmstd{0.9555}{0.0040} \\
+    100\% & 9215 & 0.9913 / 0.9779 & 0.9852 / 0.9646 & \pmstd{0.9826}{0.0009} / \pmstd{0.9615}{0.0006} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=0.72\textwidth,
+      height=5.8cm,
+      xmode=log,
+      log basis x=2,
+      xlabel={训练篇数（对数刻度）},
+      ylabel={测试集 Macro-F1},
+      xmin=750, xmax=11000,
+      ymin=0.88, ymax=0.99,
+      xtick={921,2303,4607,9215},
+      xticklabels={921,2303,4607,9215},
+      yticklabel style={/pgf/number format/fixed, /pgf/number format/precision=2},
+      legend pos=south east,
+      legend style={font=\small},
+      grid=major,
+      mark size=2pt,
+      every axis plot/.append style={thick},
+    ]
+      \addplot[black, mark=*] coordinates {(921,0.9392) (2303,0.9582) (4607,0.9720) (9215,0.9779)};
+      \addlegendentry{词频词袋}
+      \addplot[blue, dashed, mark=triangle*] coordinates {(921,0.9384) (2303,0.9483) (4607,0.9613) (9215,0.9646)};
+      \addlegendentry{GloVe}
+      \addplot[red, mark=square*, error bars/.cd, y dir=both, y explicit] coordinates {
+        (921,0.9155) +- (0,0.0300) (2303,0.9471) +- (0,0.0054) (4607,0.9555) +- (0,0.0040) (9215,0.9615) +- (0,0.0006)};
+      \addlegendentry{BERT（长度 64）}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{测试集 Macro-F1 随训练集规模的变化（额外实验，BERT 误差棒为 3 个种子的标准差）}
+  \label{fig:learning-curve}
+\end{figure}
+
+三种方法都随训练数据增加而稳定提升，且在每个比例下词频词袋的 Macro-F1 都不低于另外两种方法。只有 921 篇训练文档时，GloVe 与词袋几乎相同（Accuracy 甚至高 0.17 个百分点）：预训练词向量把语义相近的词映射到相近位置，在标注数据少时能弥补词袋特征过于稀疏的问题。数据增加后，词袋的提升更大：从 10\% 到 100\%，词袋的 Macro-F1 提高 3.87 个百分点，GloVe 只提高 2.62 个百分点，词袋为每个词学习独立权重的能力在数据充足时才得到充分发挥。BERT 在 10\% 数据时方差很大（Macro-F1 标准差 0.0300，最差的种子只有 0.8820）：921 篇文档、批大小 32、3 个 epoch 只对应 87 个更新步，微调结果对随机初始化和数据顺序很敏感；数据达到 25\% 后，种子间的波动明显缩小。在所有规模下，长度 64 的 BERT 都低于看到全文的词袋，说明它与词袋的差距主要来自截断，而不是训练数据不足。
+
+\subsection{额外实验：BERT 的截断策略}
+\label{sec:truncation}
+
+主实验只保留文档开头（head）。参照 Sun 等~\cite{sun2019fine} 的做法，再比较两种策略：只保留结尾（tail），以及同时保留开头和结尾（head+tail）。head+tail 按 Sun 等在长度 512 时使用的比例（开头 128、结尾 382 个子词）分配，即开头约占正文预算的四分之一：长度 64 时为开头 16 + 结尾 46 个子词，长度 128 时为开头 32 + 结尾 94 个子词。其余设置不变，每种组合用 3 个种子，结果见表~\ref{tab:truncation}。
+
+\begin{table}[htbp]
+  \centering
+  \caption{不同截断策略下 BERT 的测试结果（Accuracy / Macro-F1，3 个种子的均值 $\pm$ 标准差，额外实验）}
+  \label{tab:truncation}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{llccc}
+    \toprule
+    长度 & 检查点 & head（开头） & tail（结尾） & head+tail \\
+    \midrule
+    \multirow{2}{*}{64} & 末轮 & \pmstd{0.9826}{0.0009} / \pmstd{0.9615}{0.0006} & \pmstd{0.9728}{0.0010} / \pmstd{0.9430}{0.0019} & \pmstd{0.9815}{0.0018} / \pmstd{0.9565}{0.0056} \\
+     & 验证集最优 & \pmstd{0.9826}{0.0009} / \pmstd{0.9611}{0.0012} & \pmstd{0.9702}{0.0051} / \pmstd{0.9360}{0.0128} & \pmstd{0.9838}{0.0005} / \pmstd{0.9630}{0.0012} \\
+    \midrule
+    \multirow{2}{*}{128} & 末轮 & \pmstd{0.9870}{0.0009} / \pmstd{0.9693}{0.0020} & \pmstd{0.9835}{0.0015} / \pmstd{0.9639}{0.0035} & \pmstd{0.9881}{0.0010} / \pmstd{0.9728}{0.0030} \\
+     & 验证集最优 & \pmstd{0.9870}{0.0009} / \pmstd{0.9693}{0.0020} & \pmstd{0.9835}{0.0015} / \pmstd{0.9639}{0.0035} & \pmstd{0.9881}{0.0010} / \pmstd{0.9734}{0.0020} \\
+    \bottomrule
+  \end{tabular}}
+\end{table}
+
+两个长度下，只保留结尾都是最差的：长度 64 时末轮 Accuracy 比只保留开头低 0.98 个百分点，Macro-F1 低 1.85 个百分点；长度 128 时差距缩小到 0.35 和 0.54 个百分点。新闻的开头通常交代事件的主体和背景，类别信息最集中，这与 Park 等~\cite{park2022efficient} 观察到的“关键信息常在开头”一致。head+tail 的表现与长度有关：长度 64 时开头只剩 16 个子词，末轮 Macro-F1 比 head 低 0.50 个百分点，而按验证集选择检查点时又略高 0.19 个百分点，两种策略在误差范围内难分高下；长度 128 时开头有 32 个子词，head+tail 的两种检查点都优于 head（末轮 Accuracy 高 0.11、Macro-F1 高 0.35 个百分点，约为一个标准差），与 Sun 等的结论方向一致。可见结尾能提供与开头互补的信息，但前提是开头保留的部分足够长。
+
 \subsection{错误分析}
 \label{sec:error}
 
@@ -372,9 +492,10 @@ BERT~\cite{devlin2019bert} 是用掩码语言模型等任务预训练的双向 T
   \item \textbf{词向量的质量与覆盖率决定效果。}GloVe 词表最大、测试集 OOV 率最低，结果最好；AG News 模型受领域差异和词表较小的影响，结果最差。NYT 词向量即使见过测试正文，提升也只有约 0.1 个百分点，与种子波动相当。
   \item \textbf{BERT 的瓶颈是输入长度。}在长度 64 下，BERT 只读到开头的 62 个子词，仍超过基于全文的 Word2Vec；随着最大长度增加，其结果持续提升，在 256 和 512 时超过词频词袋。错误样例表明，长度 64 时的多数额外错误来自导语缺少类别线索。
   \item \textbf{错误集中在商业与政治之间。}体育类几乎没有错误，Macro-F1 的差距主要由商业与政治两类之间的混淆决定。
+  \item \textbf{额外实验。}学习曲线显示，只有 921 篇训练文档时 GloVe 与词袋相当，数据越多词袋的优势越明显，长度 64 的 BERT 在各规模下都低于词袋；截断策略实验显示，文档开头是最有效的输入片段，长度 128 时同时保留开头和结尾还能再提高约 0.35 个百分点的 Macro-F1。
 \end{itemize}
 
-\textbf{不足与改进方向。}（1）BERT 在长度 512 时仍有 931 篇测试文档被截断，可以把长文档分段编码，再聚合各段的 \texttt{[CLS]} 表示；（2）平均词向量可以改为 TF-IDF 加权平均，减弱常见词的稀释作用；（3）可以在损失中按类别加权，观察 Macro-F1 是否进一步提高；（4）BERT 的学习率、批大小等只取了一组设置，长输入在 3 个 epoch 内尚未饱和，可以进一步搜索；（5）测试集中少数类各只有约 144 篇，方法之间常常只差几篇文档，更可靠的比较需要更多随机种子或交叉验证。
+\textbf{不足与改进方向。}（1）BERT 在长度 512 时仍有 931 篇测试文档被截断，可以把长文档分段编码，再聚合各段的 \texttt{[CLS]} 表示，或使用 Longformer~\cite{beltagy2020longformer} 等长文档模型；（2）平均词向量可以改为 TF-IDF 或 SIF~\cite{arora2017simple} 加权平均，减弱常见词的稀释作用；（3）可以在损失中按类别加权，观察 Macro-F1 是否进一步提高；（4）BERT 的学习率、批大小等只取了一组设置，长输入在 3 个 epoch 内尚未饱和，可以进一步搜索；（5）测试集中少数类各只有约 144 篇，方法之间常常只差几篇文档，更可靠的比较需要更多随机种子或交叉验证。
 
 \section*{代码与复现}
 
@@ -387,6 +508,8 @@ uv run python hw1/code/word2Vec.py --method glove      # Task 2
 uv run python hw1/code/word2Vec.py --method ag --train --seed 42
 uv run python hw1/code/word2Vec.py --method nyt --train --seed 42
 uv run python hw1/code/bert.py --max_length 64 --seed 42   # Task 3
+uv run python hw1/code/bert.py --max_length 128 --truncation head_tail  # extra
+uv run python hw1/code/BoW.py --method frequency --train_fraction 0.1  # extra
 bash hw1/run_all.sh                                    # all runs, including extras
 \end{lstlisting}
 
