@@ -40,6 +40,7 @@ checkpoints/
 *.bin
 
 /logs/
+/hw1/results/
 *.w2v
 
 *.aux
