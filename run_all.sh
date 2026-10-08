@@ -2,8 +2,8 @@
 # Reproduce every homework 1 result with one command, from the repository root.
 #
 # Usage: ./run_all.sh [--required]
-#   --required   only the runs behind the report's main table (about 30 min on one H800);
-#                without it every extra experiment runs too (about 2 h on one H800).
+#   --required   only the runs behind the report's main table (about 20 min on one H800);
+#                without it every extra experiment runs too (about 100 min on one H800).
 #
 # Environment:
 #   PYTHON                 Python command (default "uv run python"; if uv is not installed,
