@@ -68,6 +68,8 @@ export PYTHONHASHSEED=0
 | Task 2 Word2Vec (NYT) | `uv run python hw1/code/word2Vec.py --method nyt --train --seed 42` | `results/emb_nyt_seed42.json` |
 | （额外）NYT 全部正文训练 | `uv run python hw1/code/word2Vec.py --method nyt --train --nyt_all_text --seed 42` | `results/emb_nyt_all_seed42.json` |
 | Task 3 BERT | `CUDA_VISIBLE_DEVICES=0 uv run python hw1/code/bert.py --max_length 64 --seed 42` | `results/bert_len64_seed42.json` |
+| （额外）学习曲线 | 三个脚本都支持 `--train_fraction 0.1`（按类别分层抽取训练集子集） | `results/*_frac0.1.json` |
+| （额外）截断策略 | `uv run python hw1/code/bert.py --max_length 128 --truncation head_tail`（可选 `head`/`tail`/`head_tail`） | `results/bert_len128_seed42_head_tail.json` |
 | 汇总 | `uv run python hw1/code/summarize.py` | `results/summary.md`、`results/error_examples.json` |
 
 - NYT 的 Word2Vec 只用训练集正文训练，验证集和测试集文本不参与。
@@ -75,7 +77,7 @@ export PYTHONHASHSEED=0
 - `bert.py` 训练满 3 个 epoch，同时报告末轮模型和验证集 Macro-F1 最优 epoch 的测试结果；`--seed` 只影响训练，数据划分始终使用 seed 42。
 - 每个 JSON 包含验证集与测试集的 Accuracy、Macro-F1、逐类 P/R/F1、混淆矩阵（行为真实标签，按 business/politics/sports 排序）和测试集预测。
 
-一键复现全部结果（3 个种子 × Word2Vec，8 个长度 × 3 个种子的 BERT，以及调 C 实验）：
+一键复现全部结果（3 个种子 × Word2Vec，8 个长度 × 3 个种子的 BERT，调 C、学习曲线和截断策略等额外实验）：
 
 ```bash
 GPU=0 bash hw1/run_all.sh        # 可用 PYTHON=".venv/bin/python" 替换解释器
@@ -99,8 +101,9 @@ Word2Vec 与 BERT 为种子 42/43/44 的均值 ± 样本标准差；其余方法
 | 额外 | TF-IDF | 0.9896 | 0.9751 |
 | 额外 | Word2Vec（NYT 全部正文，含测试文本） | 0.9818 ± 0.0017 | 0.9546 ± 0.0042 |
 | 额外 | BERT，max_length 512，第 3 个 epoch | 0.9931 ± 0.0009 | 0.9838 ± 0.0018 |
+| 额外 | BERT，max_length 128，head+tail 截断，第 3 个 epoch | 0.9881 ± 0.0010 | 0.9728 ± 0.0030 |
 
-完整结果（逐类 F1、长度扫描、调 C、词向量 OOV 率）见 [`hw1/results/summary.md`](hw1/results/summary.md)。GPU 浮点运算的非确定性可能使 BERT 结果有极小波动。
+完整结果（逐类 F1、长度扫描、调 C、学习曲线、截断策略、词向量 OOV 率）见 [`hw1/results/summary.md`](hw1/results/summary.md)。GPU 浮点运算的非确定性可能使 BERT 结果有极小波动。
 
 ## 实验设置摘要
 
@@ -108,3 +111,5 @@ Word2Vec 与 BERT 为种子 42/43/44 的均值 ± 样本标准差；其余方法
 - Logistic Regression：saga，L2 正则，C=1.0，max_iter=10000，random_state=42；主结果不调参。
 - Word2Vec：skip-gram，100 维，window 5，min_count 5，negative 5，5 epochs，workers=1。
 - BERT：AdamW，lr 2e-5，batch 32，weight decay 0.01，10% 线性预热，梯度裁剪 1.0，3 epochs。
+- head+tail 截断按 Sun et al. (2019) 的 128:382 比例分配正文预算（长度 64 为 16+46，长度 128 为 32+94）。
+- 报告中的 Word2Vec、GloVe 与 BERT 结构图取自原论文，图注中注明了来源。
