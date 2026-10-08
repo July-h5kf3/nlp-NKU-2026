@@ -1,9 +1,12 @@
 {
   "model": "bert-base-uncased",
   "max_length": 96,
+  "truncation": "head",
+  "train_fraction": 1.0,
+  "num_train": 9215,
   "seed": 44,
   "epochs": 3,
-  "train_seconds": 48.2,
+  "train_seconds": 48.0,
   "history": [
     {
       "epoch": 1,

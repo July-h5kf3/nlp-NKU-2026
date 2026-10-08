@@ -1,10 +1,12 @@
 {
   "method": "binary",
   "C": 10.0,
+  "train_fraction": 1.0,
+  "num_train": 9215,
   "vocab_size": 127053,
   "saga_iterations": 790,
   "converged": true,
-  "train_seconds": 61.0,
+  "train_seconds": 56.4,
   "val": {
     "accuracy": 0.9835069444444444,
     "macro_f1": 0.9578972355299951,
