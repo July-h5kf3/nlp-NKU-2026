@@ -1,10 +1,10 @@
-.venv/
+.venv
 
 AGENTS.MD
 
 dataset/
 
-report/
+/report/
 
 __pycache__/
 *.py[cod]
@@ -38,3 +38,19 @@ checkpoints/
 *.ckpt
 *.safetensors
 *.bin
+
+/logs/
+*.w2v
+
+*.aux
+*.log
+*.out
+*.toc
+*.bcf
+*.blg
+*.bbl
+*.fls
+*.fdb_latexmk
+*.run.xml
+*.xdv
+*.synctex.gz
