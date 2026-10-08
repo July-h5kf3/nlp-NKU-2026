@@ -1,10 +1,12 @@
 {
   "method": "tfidf",
   "C": 0.01,
+  "train_fraction": 1.0,
+  "num_train": 9215,
   "vocab_size": 127053,
   "saga_iterations": 19,
   "converged": true,
-  "train_seconds": 21.0,
+  "train_seconds": 21.6,
   "val": {
     "accuracy": 0.75,
     "macro_f1": 0.2857142857142857,
